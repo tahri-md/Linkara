@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: linkara-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: linkara_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - linkara-network
+
+  # Redis Cache & Job Queue
+  redis:
+    image: redis:7-alpine
+    container_name: linkara-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - linkara-network
+
+  # Docker DinD (Docker-in-Docker) for running jobs
+  docker-dind:
+    image: docker:dind
+    container_name: linkara-docker
+    privileged: true
+    ports:
+      - "2375:2375"
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - docker_data:/var/lib/docker
+    networks:
+      - linkara-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  docker_data:
+
+networks:
+  linkara-network:
+    driver: bridge
