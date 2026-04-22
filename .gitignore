@@ -18,6 +18,10 @@ out/
 .idea/
 *.swp
 *.swo
+
+# Documentation
+CICD_ARCHITECTURE.md
+TASKS.md
 *~
 .DS_Store
 
