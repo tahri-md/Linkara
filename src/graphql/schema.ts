@@ -6,10 +6,12 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 const userSchema = readFileSync(resolve(__dirname, './types/user.graphql'), 'utf-8');
 const organizationSchema = readFileSync(resolve(__dirname, './types/organization.graphql'), 'utf-8');
+const workflowSchema = readFileSync(resolve(__dirname, './types/workflow.graphql'), 'utf-8');
 
 export const typeDefs = `
   ${userSchema}
   ${organizationSchema}
+  ${workflowSchema}
 `;
 
 export interface Context {

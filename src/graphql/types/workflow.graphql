@@ -1,0 +1,94 @@
+enum TriggerType {
+  MANUAL
+  SCHEDULED
+  WEBHOOK
+  API
+}
+
+type WorkflowStep {
+  run: String!
+}
+
+type WorkflowJobDefinition {
+  id: String!
+  name: String!
+  image: String!
+  depends_on: [String!]
+  steps: [WorkflowStep!]!
+}
+
+type WorkflowDefinition {
+  jobs: [WorkflowJobDefinition!]!
+}
+
+type WorkflowTrigger {
+  type: TriggerType!
+  config: String
+}
+
+type Workflow {
+  id: ID!
+  org_id: ID!
+  name: String!
+  description: String
+  definition: WorkflowDefinition!
+  triggers: [WorkflowTrigger!]!
+  is_active: Boolean!
+  created_by: ID
+  created_at: String!
+  updated_at: String!
+}
+
+type WorkflowListResponse {
+  data: [Workflow!]!
+  total: Int!
+}
+
+input CreateWorkflowInput {
+  name: String!
+  description: String
+  definition: WorkflowDefinitionInput!
+  triggers: [WorkflowTriggerInput!]!
+  is_active: Boolean
+}
+
+input UpdateWorkflowInput {
+  name: String
+  description: String
+  definition: WorkflowDefinitionInput
+  triggers: [WorkflowTriggerInput!]
+  is_active: Boolean
+}
+
+input WorkflowDefinitionInput {
+  jobs: [WorkflowJobDefinitionInput!]!
+}
+
+input WorkflowJobDefinitionInput {
+  id: String!
+  name: String!
+  image: String!
+  depends_on: [String!]
+  steps: [WorkflowStepInput!]!
+}
+
+input WorkflowStepInput {
+  run: String!
+}
+
+input WorkflowTriggerInput {
+  type: TriggerType!
+  config: String
+}
+
+extend type Query {
+  workflow(id: ID!): Workflow
+  workflows(orgId: ID!, activeOnly: Boolean, limit: Int, offset: Int): WorkflowListResponse!
+}
+
+extend type Mutation {
+  createWorkflow(orgId: ID!, input: CreateWorkflowInput!): Workflow!
+  updateWorkflow(id: ID!, orgId: ID!, input: UpdateWorkflowInput!): Workflow!
+  deleteWorkflow(id: ID!, orgId: ID!, hardDelete: Boolean): Boolean!
+  restoreWorkflow(id: ID!, orgId: ID!): Workflow!
+}
