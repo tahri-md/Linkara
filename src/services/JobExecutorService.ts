@@ -1,7 +1,8 @@
 import { query } from '../db/connection.js';
 import { dockerService } from './DockerService.js';
 import { artifactService } from './ArtifactService.js';
-import type { JobStatus } from '../models/Workflow.js';
+import { jobService } from './JobService.js';
+import type { JobStatus } from '../models/Job.js';
 
 export interface JobExecutionInput {
   jobId: string;
@@ -34,7 +35,7 @@ export class JobExecutorService {
     try {
       console.log(`[executor] Starting job execution: ${input.jobId}`);
 
-      await this.updateJobStatus(input.jobId, 'running', startedAt);
+      await jobService.markJobRunning(input.jobId);
 
       const env = await this.buildEnvironment(input.env, input.secrets);
       const command = this.buildCommand(input.steps);
@@ -55,14 +56,11 @@ export class JobExecutorService {
 
       const status: JobStatus = result.exitCode === 0 ? 'success' : 'failed';
 
-      await this.updateJobStatus(
-        input.jobId,
-        status,
-        startedAt,
-        completedAt,
-        durationSeconds,
-        result.exitCode
-      );
+      if (status === 'success') {
+        await jobService.markJobCompleted(input.jobId, result.exitCode);
+      } else {
+        await jobService.markJobFailed(input.jobId, result.exitCode);
+      }
 
       console.log(`[executor] Job completed: ${input.jobId} (status: ${status})`);
 
@@ -82,15 +80,7 @@ export class JobExecutorService {
       const completedAt = new Date();
       const durationSeconds = Math.floor((completedAt.getTime() - startTime) / 1000);
 
-      await this.updateJobStatus(
-        input.jobId,
-        'failed',
-        startedAt,
-        completedAt,
-        durationSeconds,
-        1,
-        err instanceof Error ? err.message : 'Unknown error'
-      );
+      await jobService.markJobFailed(input.jobId, 1);
 
       throw err;
     }
@@ -161,70 +151,8 @@ export class JobExecutorService {
     return 'info';
   }
 
-  private async updateJobStatus(
-    jobId: string,
-    status: JobStatus,
-    startedAt?: Date,
-    completedAt?: Date,
-    durationSeconds?: number,
-    exitCode?: number,
-    errorMessage?: string
-  ): Promise<void> {
-    try {
-      const updates: string[] = ['status = $1'];
-      const params: any[] = [status];
-      let paramCount = 2;
-
-      if (startedAt) {
-        updates.push(`started_at = $${paramCount++}`);
-        params.push(startedAt);
-      }
-
-      if (completedAt) {
-        updates.push(`completed_at = $${paramCount++}`);
-        params.push(completedAt);
-      }
-
-      if (durationSeconds !== undefined) {
-        updates.push(`duration_seconds = $${paramCount++}`);
-        params.push(durationSeconds);
-      }
-
-      if (exitCode !== undefined) {
-        updates.push(`exit_code = $${paramCount++}`);
-        params.push(exitCode);
-      }
-
-      params.push(jobId);
-
-      const updateQuery = `
-        UPDATE jobs
-        SET ${updates.join(', ')}
-        WHERE id = $${paramCount}
-      `;
-
-      await query(updateQuery, params);
-
-      console.log(`[executor] Updated job status: ${jobId} -> ${status}`);
-    } catch (err) {
-      console.error(`[executor] Update job status error:`, err);
-      throw err;
-    }
-  }
-
   async getJobStatus(jobId: string): Promise<JobStatus | null> {
-    try {
-      const result = await query(`SELECT status FROM jobs WHERE id = $1`, [jobId]);
-
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0].status as JobStatus;
-    } catch (err) {
-      console.error(`[executor] Get job status error:`, err);
-      throw err;
-    }
+    return jobService.getJobStatus(jobId);
   }
 
   async getJobLogs(jobId: string): Promise<string> {
