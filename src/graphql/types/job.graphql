@@ -1,0 +1,28 @@
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+type Job {
+  id: ID!
+  pipeline_run_id: ID!
+  workflow_job_id: String
+  job_name: String!
+  status: JobStatus!
+  docker_image: String
+  docker_container_id: String
+  started_at: String
+  completed_at: String
+  duration_seconds: Int
+  exit_code: Int
+  created_at: String!
+}
+
+extend type Query {
+  job(id: ID!): Job
+  jobsByPipelineRun(pipelineRunId: ID!): [Job!]!
+  jobStatus(jobId: ID!): JobStatus
+}
