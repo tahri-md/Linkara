@@ -1,7 +1,7 @@
-import { query } from '../db/connection.js';
 import { dockerService } from './DockerService.js';
 import { artifactService } from './ArtifactService.js';
 import { jobService } from './JobService.js';
+import { logStreamService } from './LogStreamService.js';
 import type { JobStatus } from '../models/Job.js';
 
 export interface JobExecutionInput {
@@ -41,6 +41,7 @@ export class JobExecutorService {
       const command = this.buildCommand(input.steps);
 
       const result = await dockerService.executeJob({
+        jobId: input.jobId,
         image: input.dockerImage,
         cmd: ['/bin/sh', '-c', command],
         env,
@@ -49,8 +50,6 @@ export class JobExecutorService {
 
       const completedAt = new Date();
       const durationSeconds = Math.floor((completedAt.getTime() - startTime) / 1000);
-
-      await this.storeLogs(input.jobId, result.stdout);
 
       const artifacts = await artifactService.collectArtifacts(input.jobId, result.stdout);
 
@@ -110,63 +109,12 @@ export class JobExecutorService {
     return commands;
   }
 
-  private async storeLogs(jobId: string, logs: string): Promise<void> {
-    try {
-      const lines = logs.split('\n');
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.trim().length === 0) {
-          continue;
-        }
-
-        const level = this.detectLogLevel(line);
-
-        await query(
-          `INSERT INTO job_logs (job_id, line_number, level, message, timestamp, created_at)
-           VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-          [jobId, i, level, line]
-        );
-      }
-
-      console.log(`[executor] Stored ${lines.length} log lines for job ${jobId}`);
-    } catch (err) {
-      console.error(`[executor] Store logs error:`, err);
-    }
-  }
-
-  private detectLogLevel(line: string): string {
-    const upperLine = line.toUpperCase();
-
-    if (upperLine.includes('ERROR') || upperLine.includes('FATAL')) {
-      return 'error';
-    }
-    if (upperLine.includes('WARN')) {
-      return 'warning';
-    }
-    if (upperLine.includes('DEBUG')) {
-      return 'debug';
-    }
-
-    return 'info';
-  }
-
   async getJobStatus(jobId: string): Promise<JobStatus | null> {
     return jobService.getJobStatus(jobId);
   }
 
   async getJobLogs(jobId: string): Promise<string> {
-    try {
-      const result = await query(
-        `SELECT message FROM job_logs WHERE job_id = $1 ORDER BY line_number ASC`,
-        [jobId]
-      );
-
-      return result.rows.map((row) => row.message).join('\n');
-    } catch (err) {
-      console.error(`[executor] Get job logs error:`, err);
-      throw err;
-    }
+    return logStreamService.getJobLogText(jobId);
   }
 }
 
