@@ -1,4 +1,6 @@
 import Docker from 'dockerode';
+import { PassThrough } from 'stream';
+import { logStreamService } from './LogStreamService.js';
 
 const docker = new Docker({
   host: process.env.DOCKER_HOST || 'unix:///var/run/docker.sock',
@@ -6,6 +8,7 @@ const docker = new Docker({
 });
 
 export interface ContainerCreateOptions {
+  jobId: string;
   image: string;
   cmd: string[];
   env?: Record<string, string>;
@@ -89,10 +92,7 @@ export class DockerService {
     }
   }
 
-  async waitForContainer(
-    container: Docker.Container,
-    timeoutMs: number = 3600000
-  ): Promise<number> {
+  async waitForContainer(container: Docker.Container, timeoutMs: number = 3600000): Promise<number> {
     try {
       console.log(`[docker] Waiting for container: ${container.id} (timeout: ${timeoutMs}ms)`);
 
@@ -118,17 +118,57 @@ export class DockerService {
     }
   }
 
-  async getLogs(container: Docker.Container): Promise<string> {
+  private async streamContainerOutput(
+    container: Docker.Container,
+    jobId: string
+  ): Promise<{ stdout: string; stderr: string }> {
     try {
-      const logs = await container.logs({
+      const output = (await container.logs({
         stdout: true,
         stderr: true,
-        follow: false,
+        follow: true,
+        timestamps: false,
+      })) as NodeJS.ReadableStream;
+
+      const stdoutStream = new PassThrough();
+      const stderrStream = new PassThrough();
+      docker.modem.demuxStream(output, stdoutStream, stderrStream);
+
+      const stdoutChunks: string[] = [];
+      const stderrChunks: string[] = [];
+      const logWrites: Promise<unknown>[] = [];
+
+      const stdoutDone = new Promise<void>((resolve, reject) => {
+        stdoutStream.on('data', (chunk: Buffer) => {
+          const text = chunk.toString('utf8');
+          stdoutChunks.push(text);
+          logWrites.push(logStreamService.appendChunk(jobId, text, 'stdout'));
+        });
+        stdoutStream.on('end', () => resolve());
+        stdoutStream.on('error', (err) => reject(err));
       });
 
-      return logs.toString('utf-8');
+      const stderrDone = new Promise<void>((resolve, reject) => {
+        stderrStream.on('data', (chunk: Buffer) => {
+          const text = chunk.toString('utf8');
+          stderrChunks.push(text);
+          logWrites.push(logStreamService.appendChunk(jobId, text, 'stderr'));
+        });
+        stderrStream.on('end', () => resolve());
+        stderrStream.on('error', (err) => reject(err));
+      });
+
+      await Promise.all([stdoutDone, stderrDone]);
+      await Promise.all(logWrites);
+
+      const stdout = stdoutChunks.join('');
+      const stderr = stderrChunks.join('');
+
+      await logStreamService.flush(jobId);
+
+      return { stdout, stderr };
     } catch (err) {
-      console.error(`[docker] Get logs error:`, err);
+      console.error(`[docker] Collect output error:`, err);
       throw err;
     }
   }
@@ -152,13 +192,15 @@ export class DockerService {
       container = await this.createContainer(options);
       await this.startContainer(container);
 
+      const outputPromise = this.streamContainerOutput(container, options.jobId);
+
       const exitCode = await this.waitForContainer(container, options.timeout);
-      const logs = await this.getLogs(container);
+      const { stdout, stderr } = await outputPromise;
 
       return {
         exitCode,
-        stdout: logs,
-        stderr: logs,
+        stdout,
+        stderr,
       };
     } finally {
       if (container) {
