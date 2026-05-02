@@ -13,7 +13,7 @@ export class JobService {
     async getJobById(jobId: string): Promise<Job | null> {
         const result = await query(
             `SELECT id, pipeline_run_id, workflow_job_id, job_name, status, docker_image, docker_container_id,
-                            started_at, completed_at, duration_seconds, exit_code, created_at
+                            started_at, completed_at, duration_seconds, retry_count, exit_code, created_at
              FROM jobs
              WHERE id = $1`,
             [jobId]
@@ -29,7 +29,7 @@ export class JobService {
     async getJobsByPipelineRun(pipelineRunId: string): Promise<Job[]> {
         const result = await query(
             `SELECT id, pipeline_run_id, workflow_job_id, job_name, status, docker_image, docker_container_id,
-                            started_at, completed_at, duration_seconds, exit_code, created_at
+                            started_at, completed_at, duration_seconds, retry_count, exit_code, created_at
              FROM jobs
              WHERE pipeline_run_id = $1
              ORDER BY created_at ASC`,
@@ -49,8 +49,30 @@ export class JobService {
                      duration_seconds = NULL,
                      exit_code = NULL
              WHERE id = $1
-             RETURNING status, started_at, completed_at, duration_seconds, exit_code`,
+                     RETURNING status, started_at, completed_at, duration_seconds, retry_count, exit_code`,
             [jobId, startedAt]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('Job not found');
+        }
+
+        return result.rows[0] as JobRunState;
+    }
+    async updateRetryCount(jobId: string, retry_count: number, exit_code: number) {
+        const result = await query(
+            `UPDATE jobs
+             SET status = 'failed',
+                     retry_count = $1,
+                     completed_at = NOW(),
+                     duration_seconds = COALESCE(
+                         EXTRACT(EPOCH FROM (NOW() - started_at))::INT,
+                         0
+                     ),
+                     exit_code = $3
+             WHERE id = $2
+             RETURNING status, started_at, completed_at, duration_seconds, retry_count, exit_code`,
+            [retry_count, jobId, exit_code]
         );
 
         if (result.rows.length === 0) {
@@ -71,7 +93,7 @@ export class JobService {
                      ),
                      exit_code = $2
              WHERE id = $1
-             RETURNING status, started_at, completed_at, duration_seconds, exit_code`,
+             RETURNING status, started_at, completed_at, duration_seconds, retry_count, exit_code`,
             [jobId, exitCode]
         );
 
@@ -93,7 +115,7 @@ export class JobService {
                      ),
                      exit_code = $2
              WHERE id = $1
-             RETURNING status, started_at, completed_at, duration_seconds, exit_code`,
+             RETURNING status, started_at, completed_at, duration_seconds, retry_count, exit_code`,
             [jobId, exitCode]
         );
 

@@ -16,6 +16,7 @@ export interface Job {
   started_at: Date | null;
   completed_at: Date | null;
   duration_seconds: number | null;
+  retry_count:number|null;
   exit_code: number | null;
   created_at: Date;
 }

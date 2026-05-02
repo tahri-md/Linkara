@@ -2,6 +2,7 @@ import { dockerService } from './DockerService.js';
 import { artifactService } from './ArtifactService.js';
 import { jobService } from './JobService.js';
 import { logStreamService } from './LogStreamService.js';
+import { query } from '../db/connection.js';
 import type { JobStatus } from '../models/Job.js';
 
 export interface JobExecutionInput {
@@ -12,6 +13,8 @@ export interface JobExecutionInput {
   dockerImage: string;
   steps: Array<{ run: string }>;
   env?: Record<string, string>;
+  retryCount?: number;
+  maxRetry?: number;
   timeout?: number;
   secrets?: Record<string, string>;
 }
@@ -28,6 +31,70 @@ export interface JobExecutionResult {
 }
 
 export class JobExecutorService {
+  private async resolveRetryPolicy(input: JobExecutionInput): Promise<{ retryCount: number; maxRetry: number }> {
+    const job = await jobService.getJobById(input.jobId);
+    const retryCount = input.retryCount ?? job?.retry_count ?? 0;
+
+    if (typeof input.maxRetry === 'number') {
+      return { retryCount, maxRetry: input.maxRetry };
+    }
+
+    const workflowResult = await query(
+      `SELECT w.definition
+       FROM pipeline_runs pr
+       JOIN workflows w ON w.id = pr.workflow_id
+       WHERE pr.id = $1
+       LIMIT 1`,
+      [input.pipelineRunId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return { retryCount, maxRetry: 0 };
+    }
+
+    const definition = workflowResult.rows[0].definition;
+    const parsedDefinition = typeof definition === 'string' ? JSON.parse(definition) : definition;
+    const workflowJob = parsedDefinition?.jobs?.[input.workflowJobId];
+    const maxRetry = typeof workflowJob?.retry_count === 'number' ? workflowJob.retry_count : 0;
+
+    return { retryCount, maxRetry };
+  }
+
+  private async recordFailureAndMaybeRetry(
+    input: JobExecutionInput,
+    exitCode: number,
+    reason: string,
+    startTime: number
+  ): Promise<never> {
+    const { retryCount, maxRetry } = await this.resolveRetryPolicy(input);
+    const nextRetryCount = retryCount + 1;
+    const completedAt = new Date();
+    const durationSeconds = Math.floor((completedAt.getTime() - startTime) / 1000);
+
+    await logStreamService.appendLog(input.jobId, {
+      message: `Job failed: ${reason}`,
+      level: 'error',
+      lineNumber: null,
+      timestamp: completedAt,
+    });
+
+    if (retryCount < maxRetry) {
+      await jobService.updateRetryCount(input.jobId, nextRetryCount, exitCode);
+      console.error(
+        `[executor] Job failed: ${input.jobId} (attempt ${nextRetryCount}/${maxRetry}), scheduling retry`
+      );
+      throw new Error(
+        `Job ${input.jobId} failed but will be retried (${nextRetryCount}/${maxRetry}): ${reason}`
+      );
+    }
+
+    await jobService.markJobFailed(input.jobId, exitCode);
+    console.error(
+      `[executor] Job failed permanently: ${input.jobId} after ${durationSeconds}s: ${reason}`
+    );
+    throw new Error(`Job ${input.jobId} failed permanently: ${reason}`);
+  }
+
   async executeJob(input: JobExecutionInput): Promise<JobExecutionResult> {
     const startTime = Date.now();
     const startedAt = new Date();
@@ -53,19 +120,22 @@ export class JobExecutorService {
 
       const artifacts = await artifactService.collectArtifacts(input.jobId, result.stdout);
 
-      const status: JobStatus = result.exitCode === 0 ? 'success' : 'failed';
-
-      if (status === 'success') {
+      if (result.exitCode === 0) {
         await jobService.markJobCompleted(input.jobId, result.exitCode);
       } else {
-        await jobService.markJobFailed(input.jobId, result.exitCode);
+        await this.recordFailureAndMaybeRetry(
+          input,
+          result.exitCode,
+          result.stderr || `Container exited with code ${result.exitCode}`,
+          startTime
+        );
       }
 
-      console.log(`[executor] Job completed: ${input.jobId} (status: ${status})`);
+      console.log(`[executor] Job completed: ${input.jobId} (status: success)`);
 
       return {
         jobId: input.jobId,
-        status,
+        status: 'success',
         exitCode: result.exitCode,
         startedAt,
         completedAt,
@@ -76,12 +146,9 @@ export class JobExecutorService {
     } catch (err) {
       console.error(`[executor] Job execution error:`, err);
 
-      const completedAt = new Date();
-      const durationSeconds = Math.floor((completedAt.getTime() - startTime) / 1000);
-
-      await jobService.markJobFailed(input.jobId, 1);
-
-      throw err;
+      const reason = err instanceof Error ? err.message : String(err);
+      await this.recordFailureAndMaybeRetry(input, 1, reason, startTime);
+      throw new Error(`Job ${input.jobId} failed: ${reason}`);
     }
   }
 
