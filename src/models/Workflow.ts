@@ -9,13 +9,6 @@ export type TriggerType =
   | 'webhook'
   | 'api';
 
-export type PipelineRunStatus =
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
-
 
 // ─── Core Workflow Definition (JSON Structure) ───────────────────────────────
 
@@ -27,6 +20,7 @@ export interface WorkflowJobDefinition {
   id: string;
   name: string;
   image: string;
+  retry_count?: number;
   depends_on?: string[];
   steps: WorkflowStep[];
 }
@@ -64,23 +58,7 @@ export interface Workflow {
   updated_at: Date;
 }
 
-export interface PipelineRun {
-  id: string;
-  workflow_id: string;
-  org_id: string;
 
-  trigger_type: TriggerType;
-  trigger_data: Record<string, unknown> | null;
-  triggered_by: string | null;
-
-  status: PipelineRunStatus;
-
-  started_at: Date | null;
-  completed_at: Date | null;
-  duration_seconds: number | null;
-
-  created_at: Date;
-}
 
 
 // ─── Inputs ──────────────────────────────────────────────────────────────────
@@ -105,10 +83,7 @@ export interface UpdateWorkflowInput {
   is_active?: boolean;
 }
 
-export interface TriggerPipelineRunInput {
-  trigger_type: TriggerType;
-  trigger_data?: Record<string, unknown>;
-}
+
 
 
 // ─── Responses ───────────────────────────────────────────────────────────────
@@ -120,11 +95,3 @@ export interface WorkflowListResponse {
   total: number;
 }
 
-export interface PipelineRunResponse extends PipelineRun {
-  jobs: Job[];
-}
-
-export interface PipelineRunListResponse {
-  data: PipelineRunResponse[];
-  total: number;
-}
