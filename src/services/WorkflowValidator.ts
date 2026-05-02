@@ -49,6 +49,12 @@ export class WorkflowValidator {
       errors.push(`Job '${key}' must have a docker image`);
     }
 
+    if (job.retry_count !== undefined) {
+      if (!Number.isInteger(job.retry_count) || job.retry_count < 0) {
+        errors.push(`Job '${key}' retry_count must be a non-negative integer`);
+      }
+    }
+
     if (!job.steps || job.steps.length === 0) {
       errors.push(`Job '${key}' must have at least one step`);
     } else {

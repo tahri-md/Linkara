@@ -102,6 +102,7 @@ CREATE TABLE jobs (
   started_at TIMESTAMP,
   completed_at TIMESTAMP,
   duration_seconds INTEGER,
+  retry_count INTEGER DEFAULT 0,
   exit_code INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
