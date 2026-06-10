@@ -1,0 +1,127 @@
+# =========================
+# Enums
+# =========================
+
+enum WebhookProvider {
+  github
+  gitlab
+  bitbucket
+}
+
+enum WebhookEventStatus {
+  success
+  failed
+}
+
+# =========================
+# Webhook Core Types
+# =========================
+
+type Webhook {
+  id: ID!
+
+  org_id: ID!
+  workflow_id: ID!
+
+  provider: WebhookProvider!
+  url: String!
+
+  secret: String!
+
+  events: [String!]!
+
+  active: Boolean!
+
+  created_at: String!
+  updated_at: String
+}
+
+type WebhookEvent {
+  id: ID!
+
+  webhook_id: ID!
+
+  event_type: String!
+
+  payload: JSON
+
+  delivered_at: String
+  status: WebhookEventStatus!
+
+  created_at: String
+}
+
+# =========================
+# Input Types
+# =========================
+
+input CreateWebhookInput {
+  org_id: ID!
+  workflow_id: ID!
+
+  provider: WebhookProvider!
+  url: String!
+
+  secret: String!
+
+  events: [String!]!
+
+  active: Boolean
+}
+
+input UpdateWebhookInput {
+  url: String
+  secret: String
+  events: [String!]
+  active: Boolean
+}
+
+input CreateWebhookEventInput {
+  webhook_id: ID!
+
+  event_type: String!
+
+  payload: JSON
+
+  delivered_at: String
+  status: WebhookEventStatus!
+}
+
+input WebhookEventFilter {
+  webhook_id: ID
+  event_type: String
+  status: WebhookEventStatus
+}
+
+# =========================
+# Response Wrappers
+# =========================
+
+type WebhookListResponse {
+  data: [Webhook!]!
+  total: Int!
+}
+
+type WebhookEventListResponse {
+  data: [WebhookEvent!]!
+  total: Int!
+}
+
+# =========================
+# Queries
+# =========================
+
+type Query {
+  webhooks(orgId: ID!): WebhookListResponse!
+  webhookEvents(webhookId: ID!): WebhookEventListResponse!
+}
+
+# =========================
+# Mutations
+# =========================
+
+type Mutation {
+  createWebhook(input: CreateWebhookInput!): Webhook!
+  updateWebhook(id: ID!, input: UpdateWebhookInput!): Webhook!
+  deleteWebhook(id: ID!): Boolean!
+}

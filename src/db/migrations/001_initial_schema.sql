@@ -220,6 +220,28 @@ CREATE TABLE audit_logs (
   user_agent TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- 14. Weebhooks
+CREATE TABLE webhooks (
+  id UUID PRIMARY KEY,
+  org_id UUID REFERENCES organizations(id),
+  workflow_id UUID REFERENCES workflows(id),
+  provider VARCHAR(50), -- github, gitlab, bitbucket
+  url VARCHAR(500), -- webhook URL
+  secret VARCHAR(256), -- HMAC secret
+  events TEXT[], -- array of events to listen for
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+CREATE TABLE webhook_events (
+  id UUID PRIMARY KEY,
+  webhook_id UUID REFERENCES webhooks(id),
+  event_type VARCHAR(100),
+  payload JSONB,
+  delivered_at TIMESTAMP,
+  status VARCHAR(20) -- success, failed
+);
 
 CREATE INDEX idx_audit_logs_org_id_created_at ON audit_logs(org_id, created_at DESC);
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
