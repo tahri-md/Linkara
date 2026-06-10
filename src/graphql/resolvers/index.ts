@@ -4,10 +4,12 @@ import { workflowResolvers } from './workflow.js';
 import { jobResolvers } from './job.js';
 import { pipelineResolvers } from './pipeline.js';
 import { secretsResolvers } from './secrets.js';
+import { webhookResolvers } from './webhook.js';
 
 export const resolvers = {
   Query: {
     ...authResolvers.Query,
+    ...webhookResolvers.Query,
     ...organizationResolvers.Query,
     ...workflowResolvers.Query,
     ...jobResolvers.Query,
@@ -16,6 +18,7 @@ export const resolvers = {
   },
   Mutation: {
     ...authResolvers.Mutation,
+    ...webhookResolvers.Mutation,
     ...organizationResolvers.Mutation,
     ...workflowResolvers.Mutation,
     ...pipelineResolvers.Mutation,
@@ -23,4 +26,5 @@ export const resolvers = {
   },
   Organization: organizationResolvers.Organization,
   PipelineRun: pipelineResolvers.PipelineRun,
+  Webhook: webhookResolvers.Webhook,
 };
