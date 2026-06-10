@@ -13,6 +13,8 @@ export function generateWebhookSecret(): string {
 }
 
 export class WebhooksService {
+  pipelineService = new PipelineService();
+
   verifySignature(secret: string, payload: any, signature: string): boolean {
     try {
       const hmac = crypto
@@ -147,7 +149,7 @@ export class WebhooksService {
     }
     const workflow = workflow_re.rows[0]
 
-    const pipelineRun = await PipelineService.trigger_pipelineRun(workflow);
+    const pipelineRun = await this.pipelineService.trigger_pipelineRun(workflow);
 
     try {
       await query(

@@ -1,7 +1,7 @@
-import { query } from "../db/connection";
-import { Workflow } from "../models/Workflow";
-import { jobExecutionQueue } from "../queue/queues";
-import { JobExecutorService } from "./JobExecutorService";
+import { query } from "../db/connection.js";
+import { Workflow } from "../models/Workflow.js";
+import { jobExecutionQueue } from "../queue/queues.js";
+import { JobExecutorService } from "./JobExecutorService.js";
 
 export class PipelineService {
     private jobExecutor = new JobExecutorService()
