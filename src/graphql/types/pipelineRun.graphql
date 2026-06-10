@@ -1,0 +1,116 @@
+# Enums
+enum TriggerType {
+  manual
+  scheduled
+  webhook
+  api
+}
+
+enum PipelineRunStatus {
+  pending
+  running
+  success
+  failed
+  cancelled
+}
+
+# -------------------------
+# Trigger Data (NO JSON)
+# -------------------------
+
+input ManualTriggerInput {
+  user_id: ID
+}
+
+input WebhookTriggerInput {
+  repo: String!
+  event: String!
+  payload_id: ID
+}
+
+input ScheduledTriggerInput {
+  cron: String!
+}
+
+input ApiTriggerInput {
+  api_key: String
+  source: String
+}
+
+# Wrapper input (what mutation receives)
+input TriggerPipelineRunInput {
+  trigger_type: TriggerType!
+
+  manual: ManualTriggerInput
+  webhook: WebhookTriggerInput
+  scheduled: ScheduledTriggerInput
+  api: ApiTriggerInput
+}
+
+# -------------------------
+# Types
+# -------------------------
+
+type PipelineRun {
+  id: ID!
+  workflow_id: ID!
+  org_id: ID!
+
+  trigger_type: TriggerType!
+
+  triggered_by: ID
+
+  status: PipelineRunStatus!
+
+  started_at: String
+  completed_at: String
+  duration_seconds: Int
+
+  created_at: String!
+}
+
+# -------------------------
+# Response with jobs
+# -------------------------
+
+type PipelineRunResponse {
+  id: ID!
+  workflow_id: ID!
+  org_id: ID!
+
+  trigger_type: TriggerType!
+
+  triggered_by: ID
+
+  status: PipelineRunStatus!
+
+  started_at: String
+  completed_at: String
+  duration_seconds: Int
+
+  created_at: String!
+
+  jobs: [Job!]!
+}
+
+type PipelineRunListResponse {
+  data: [PipelineRunResponse!]!
+  total: Int!
+}
+
+input TriggerPipelineRunInput {
+  workflowId: ID!
+  trigger_type: TriggerType!
+
+  manual: ManualTriggerInput
+  webhook: WebhookTriggerInput
+  scheduled: ScheduledTriggerInput
+  api: ApiTriggerInput
+}
+type Query {
+  pipelineRun(id: ID!): PipelineRunResponse
+  pipelineRuns(orgId: ID!, workflowId: ID, limit: Int, offset: Int): PipelineRunListResponse
+}
+type Mutation {
+  triggerPipelineRun(orgId: ID!, input: TriggerPipelineRunInput!): PipelineRunResponse!
+}
