@@ -12,6 +12,7 @@ const secretsSchema = readFileSync(resolve(__dirname, './types/secrets.graphql')
 const pipelineRunSchema = readFileSync(resolve(__dirname, './types/pipelineRun.graphql'), 'utf-8');
 const notificationSchema = readFileSync(resolve(__dirname, './types/notification.graphql'), 'utf-8');
 const webhooksSchema = readFileSync(resolve(__dirname, './types/webhooks.graphql'), 'utf-8');
+const rbacSchema = readFileSync(resolve(__dirname, './types/rbac.graphql'), 'utf-8');
 
 export const typeDefs = `
   ${userSchema}
@@ -22,6 +23,8 @@ export const typeDefs = `
   ${pipelineRunSchema}
   ${webhooksSchema}
   ${notificationSchema}
+  ${rbacSchema}
+
 
 `;
 
