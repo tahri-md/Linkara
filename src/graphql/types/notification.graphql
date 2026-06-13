@@ -1,0 +1,62 @@
+enum NotifyOnType {
+  all
+  failure_only
+}
+
+enum NotificationType {
+  email
+  slack
+  teams
+}
+
+enum NotificationStatus {
+  sent
+  failed
+}
+
+type NotificationPreference {
+  id: ID!
+  userId: ID!
+  orgId: ID!
+  emailOnSuccess: Boolean!
+  emailOnFailure: Boolean!
+  slackWebhookUrl: String
+  teamsWebhookUrl: String
+  notifyOn: NotifyOnType!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type NotificationLog {
+  id: ID!
+  userId: ID!
+  jobId: ID!
+  notificationType: NotificationType!
+  status: NotificationStatus!
+  sentAt: String!
+  errorMessage: String
+}
+
+input NotificationPreferenceInput {
+  emailOnSuccess: Boolean!
+  emailOnFailure: Boolean!
+  slackWebhookUrl: String
+  teamsWebhookUrl: String
+  notifyOn: NotifyOnType!
+}
+
+extend type Query {
+  notificationPreferences(orgId: ID!): NotificationPreference
+}
+
+extend type Mutation {
+  setNotificationPreferences(
+    orgId: ID!
+    preferences: NotificationPreferenceInput!
+  ): NotificationPreference!
+  
+  sendTestNotification(
+    orgId: ID!
+    type: NotificationType!
+  ): Boolean!
+}
