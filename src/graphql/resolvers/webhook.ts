@@ -192,17 +192,17 @@ export const webhookResolvers = {
       }
     },
 
-    createdAt: (webhook: Webhook) => {
-      return webhook.created_at instanceof Date
-        ? webhook.created_at
-        : new Date(webhook.created_at);
-    },
+   createdAt: (webhook:any) => {
+    return webhook.created_at instanceof Date
+      ? webhook.created_at.toISOString()
+      : new Date(webhook.created_at).toISOString();
+  },
 
-    updatedAt: (webhook: Webhook) => {
-      if (!webhook.updated_at) return null;
-      return webhook.updated_at instanceof Date
-        ? webhook.updated_at
-        : new Date(webhook.updated_at);
-    },
+  updatedAt: (webhook:any) => {
+    if (!webhook.updated_at) return null;
+    return webhook.updated_at instanceof Date
+      ? webhook.updated_at.toISOString()
+      : new Date(webhook.updated_at).toISOString();
+  },
   },
 };

@@ -32,8 +32,8 @@ type Webhook {
 
   active: Boolean!
 
-  created_at: String!
-  updated_at: String
+  createdAt: String!
+  updatedAt: String
 }
 
 type WebhookEvent {
@@ -43,7 +43,7 @@ type WebhookEvent {
 
   event_type: String!
 
-  payload: JSON
+  payload: String
 
   delivered_at: String
   status: WebhookEventStatus!
@@ -81,7 +81,7 @@ input CreateWebhookEventInput {
 
   event_type: String!
 
-  payload: JSON
+  payload: String
 
   delivered_at: String
   status: WebhookEventStatus!
@@ -124,4 +124,13 @@ type Mutation {
   createWebhook(input: CreateWebhookInput!): Webhook!
   updateWebhook(id: ID!, input: UpdateWebhookInput!): Webhook!
   deleteWebhook(id: ID!): Boolean!
+
+  handleWebhookEvent(input: CreateWebhookEventInput!): Boolean!
+  updateWebhookEvents(id: ID!, events: [String!]!): Webhook!
+}
+
+type Query {
+  webhooks(orgId: ID!): WebhookListResponse!
+  webhook(orgId: ID!, id: ID!): Webhook
+  webhookEvents(webhookId: ID!): WebhookEventListResponse!
 }
