@@ -243,6 +243,40 @@ CREATE TABLE webhook_events (
   status VARCHAR(20) -- success, failed
 );
 
+-- Notification Preferences Table
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email_on_success BOOLEAN DEFAULT false,
+  email_on_failure BOOLEAN DEFAULT true,
+  slack_webhook_url VARCHAR(500),
+  teams_webhook_url VARCHAR(500),
+  notify_on VARCHAR(50) DEFAULT 'failure_only', -- 'all' or 'failure_only'
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, org_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_preferences_user_id ON notification_preferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_preferences_org_id ON notification_preferences(org_id);
+
+-- Notification Logs Table
+CREATE TABLE IF NOT EXISTS notification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  notification_type VARCHAR(50) NOT NULL, -- 'email', 'slack', 'teams'
+  status VARCHAR(20) NOT NULL DEFAULT 'sent', -- 'sent', 'failed'
+  sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_logs_user_id ON notification_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_job_id ON notification_logs(job_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_sent_at ON notification_logs(sent_at DESC);
+
+
 CREATE INDEX idx_audit_logs_org_id_created_at ON audit_logs(org_id, created_at DESC);
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_resource_type ON audit_logs(resource_type);
@@ -257,3 +291,4 @@ COMMENT ON TABLE job_logs IS 'Log output from job execution';
 COMMENT ON TABLE secrets IS 'Encrypted secrets for job execution';
 COMMENT ON TABLE deployments IS 'Deployment records for tracking deployments across environments';
 COMMENT ON TABLE audit_logs IS 'Audit trail of all system actions for compliance';
+
