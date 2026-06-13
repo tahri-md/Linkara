@@ -2,6 +2,7 @@ import { dockerService } from './DockerService.js';
 import { artifactService } from './ArtifactService.js';
 import { jobService } from './JobService.js';
 import { logStreamService } from './LogStreamService.js';
+import { notificationService } from './NotificationService.js';
 import { query } from '../db/connection.js';
 import type { JobStatus } from '../models/Job.js';
 
@@ -89,6 +90,15 @@ export class JobExecutorService {
     }
 
     await jobService.markJobFailed(input.jobId, exitCode);
+
+    // Trigger failure notifications
+    try {
+      await notificationService.notifyJobCompletion(input.jobId, 'failure');
+    } catch (notificationError) {
+      console.error(`[executor] Error sending notifications for job ${input.jobId}:`, notificationError);
+      // Don't fail the job if notifications fail
+    }
+
     console.error(
       `[executor] Job failed permanently: ${input.jobId} after ${durationSeconds}s: ${reason}`
     );
@@ -98,15 +108,11 @@ export class JobExecutorService {
   async executeJob(input: JobExecutionInput): Promise<JobExecutionResult> {
     const startTime = Date.now();
     const startedAt = new Date();
-
     try {
       console.log(`[executor] Starting job execution: ${input.jobId}`);
-
       await jobService.markJobRunning(input.jobId);
-
       const env = await this.buildEnvironment(input.env, input.secrets);
       const command = this.buildCommand(input.steps);
-
       const result = await dockerService.executeJob({
         jobId: input.jobId,
         image: input.dockerImage,
@@ -114,14 +120,16 @@ export class JobExecutorService {
         env,
         timeout: input.timeout || 3600000,
       });
-
       const completedAt = new Date();
       const durationSeconds = Math.floor((completedAt.getTime() - startTime) / 1000);
-
       const artifacts = await artifactService.collectArtifacts(input.jobId, result.stdout);
-
       if (result.exitCode === 0) {
         await jobService.markJobCompleted(input.jobId, result.exitCode);
+        try {
+          await notificationService.notifyJobCompletion(input.jobId, 'success');
+        } catch (notificationError) {
+          console.error(`[executor] Error sending notifications for job ${input.jobId}:`, notificationError);
+        }
       } else {
         await this.recordFailureAndMaybeRetry(
           input,
@@ -130,9 +138,7 @@ export class JobExecutorService {
           startTime
         );
       }
-
       console.log(`[executor] Job completed: ${input.jobId} (status: success)`);
-
       return {
         jobId: input.jobId,
         status: 'success',
@@ -145,10 +151,31 @@ export class JobExecutorService {
       };
     } catch (err) {
       console.error(`[executor] Job execution error:`, err);
-
       const reason = err instanceof Error ? err.message : String(err);
-      await this.recordFailureAndMaybeRetry(input, 1, reason, startTime);
-      throw new Error(`Job ${input.jobId} failed: ${reason}`);
+      try {
+        await this.recordFailureAndMaybeRetry(input, 1, reason, startTime);
+      } catch (failureError) {
+        const { retryCount, maxRetry } = await this.resolveRetryPolicy(input);
+        if (retryCount >= maxRetry) {
+          try {
+            await notificationService.notifyJobCompletion(input.jobId, 'failure');
+          } catch (notificationError) {
+            console.error(`[executor] Error sending notifications for job ${input.jobId}:`, notificationError);
+          }
+        }
+        throw failureError;
+      }
+      const completedAt = new Date();
+      return {
+        jobId: input.jobId,
+        status: 'failed',
+        exitCode: 1,
+        startedAt,
+        completedAt,
+        durationSeconds: Math.floor((completedAt.getTime() - startTime) / 1000),
+        logs: '',
+        artifactCount: 0,
+      };
     }
   }
 
