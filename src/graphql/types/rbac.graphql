@@ -1,0 +1,132 @@
+enum Permission {
+  # Organization Management
+  ORG_READ
+  ORG_UPDATE
+  ORG_DELETE
+  ORG_INVITE_MEMBER
+  ORG_REMOVE_MEMBER
+
+  # Workflow Management
+  WORKFLOW_CREATE
+  WORKFLOW_READ
+  WORKFLOW_UPDATE
+  WORKFLOW_DELETE
+  WORKFLOW_EXECUTE
+
+  # Job Management
+  JOB_CREATE
+  JOB_READ
+  JOB_UPDATE
+  JOB_DELETE
+  JOB_CANCEL
+  JOB_RETRY
+
+  # Member Management
+  MEMBER_INVITE
+  MEMBER_REMOVE
+  MEMBER_UPDATE
+  MEMBER_ASSIGN_ROLE
+
+  # Settings
+  SETTINGS_READ
+  SETTINGS_UPDATE
+
+  # Webhook Management
+  WEBHOOK_CREATE
+  WEBHOOK_READ
+  WEBHOOK_UPDATE
+  WEBHOOK_DELETE
+
+  # Secrets Management
+  SECRETS_CREATE
+  SECRETS_READ
+  SECRETS_UPDATE
+  SECRETS_DELETE
+}
+
+enum PredefinedRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+type Role {
+  id: String!
+  orgId: String!
+  name: String!
+  description: String
+  permissions: [Permission!]!
+  isPredefined: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type MemberRole {
+  id: String!
+  orgId: String!
+  userId: String!
+  roleId: String!
+  assignedAt: String!
+}
+
+type RBACContext {
+  userId: String!
+  orgId: String!
+  permissions: [Permission!]!
+  roles: [Role!]!
+}
+
+input CreateRoleInput {
+  name: String!
+  description: String
+  permissions: [Permission!]!
+}
+
+input UpdateRolePermissionsInput {
+  permissions: [Permission!]!
+}
+
+input AssignRoleInput {
+  userId: String!
+  roleId: String!
+}
+
+type OperationResult {
+  success: Boolean!
+  message: String
+  data: String
+}
+
+extend type Query {
+  # Get all roles in an organization
+  roles(orgId: String!): [Role!]!
+
+  # Get all roles assigned to a user
+  userRoles(orgId: String!): [Role!]!
+
+  # Get all permissions for a user
+  userPermissions(orgId: String!): [Permission!]!
+
+  # Check if user has a specific permission
+  hasPermission(orgId: String!, permission: Permission!): Boolean!
+
+  # Get RBAC context for a user
+  rbacContext(orgId: String!): RBACContext!
+}
+
+extend type Mutation {
+  # Create a new custom role
+  createRole(orgId: String!, input: CreateRoleInput!): Role!
+
+  # Update role permissions
+  updateRolePermissions(roleId: String!, input: UpdateRolePermissionsInput!): Role!
+
+  # Assign a role to a user
+  assignRole(orgId: String!, input: AssignRoleInput!): MemberRole!
+
+  # Remove a role from a user
+  removeRole(orgId: String!, userId: String!, roleId: String!): OperationResult!
+
+  # Delete a custom role
+  deleteRole(roleId: String!): OperationResult!
+}
