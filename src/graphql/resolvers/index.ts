@@ -5,6 +5,7 @@ import { jobResolvers } from './job.js';
 import { pipelineResolvers } from './pipeline.js';
 import { secretsResolvers } from './secrets.js';
 import { webhookResolvers } from './webhook.js';
+import { notificationResolvers } from './notification.js';
 
 export const resolvers = {
   Query: {
@@ -15,6 +16,8 @@ export const resolvers = {
     ...jobResolvers.Query,
     ...pipelineResolvers.Query,
     ...secretsResolvers.Query,
+    ...notificationResolvers.Query,
+
   },
   Mutation: {
     ...authResolvers.Mutation,
@@ -23,6 +26,8 @@ export const resolvers = {
     ...workflowResolvers.Mutation,
     ...pipelineResolvers.Mutation,
     ...secretsResolvers.Mutation,
+    ...notificationResolvers.Mutation,
+
   },
   Organization: organizationResolvers.Organization,
   PipelineRun: pipelineResolvers.PipelineRun,
