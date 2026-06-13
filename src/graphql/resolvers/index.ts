@@ -6,6 +6,7 @@ import { pipelineResolvers } from './pipeline.js';
 import { secretsResolvers } from './secrets.js';
 import { webhookResolvers } from './webhook.js';
 import { notificationResolvers } from './notification.js';
+import { rbacResolvers } from './rbac.js';
 
 export const resolvers = {
   Query: {
@@ -17,7 +18,7 @@ export const resolvers = {
     ...pipelineResolvers.Query,
     ...secretsResolvers.Query,
     ...notificationResolvers.Query,
-
+    ...rbacResolvers.Query,
   },
   Mutation: {
     ...authResolvers.Mutation,
@@ -27,6 +28,8 @@ export const resolvers = {
     ...pipelineResolvers.Mutation,
     ...secretsResolvers.Mutation,
     ...notificationResolvers.Mutation,
+    ...rbacResolvers.Mutation,
+
 
   },
   Organization: organizationResolvers.Organization,
