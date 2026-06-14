@@ -7,6 +7,7 @@ import { secretsResolvers } from './secrets.js';
 import { webhookResolvers } from './webhook.js';
 import { notificationResolvers } from './notification.js';
 import { rbacResolvers } from './rbac.js';
+import { tenancyResolvers } from './tenancy.js';
 
 export const resolvers = {
   Query: {
@@ -19,6 +20,8 @@ export const resolvers = {
     ...secretsResolvers.Query,
     ...notificationResolvers.Query,
     ...rbacResolvers.Query,
+    ...tenancyResolvers.Query,
+
   },
   Mutation: {
     ...authResolvers.Mutation,
@@ -29,6 +32,8 @@ export const resolvers = {
     ...secretsResolvers.Mutation,
     ...notificationResolvers.Mutation,
     ...rbacResolvers.Mutation,
+    ...tenancyResolvers.Mutation,
+
 
 
   },
