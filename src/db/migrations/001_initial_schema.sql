@@ -302,6 +302,72 @@ CREATE TABLE member_roles (
   UNIQUE(org_id, user_id, role_id)
 );
 
+-- Create tenants table
+CREATE TABLE tenants (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  level VARCHAR(50) NOT NULL CHECK (level IN ('organization', 'workspace', 'team', 'project')),
+  parent_tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  description TEXT,
+  metadata JSONB DEFAULT '{}',
+  status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'archived')),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Create tenant members table
+CREATE TABLE tenant_members (
+  id UUID PRIMARY KEY,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(100) NOT NULL,
+  joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(tenant_id, user_id)
+);
+
+-- Create tenant isolation configs table
+CREATE TABLE tenant_isolation_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+  data_isolation VARCHAR(50) NOT NULL DEFAULT 'strict' CHECK (data_isolation IN ('strict', 'shared', 'hybrid')),
+  resource_sharing BOOLEAN NOT NULL DEFAULT false,
+  cross_tenant_access BOOLEAN NOT NULL DEFAULT false,
+  custom_metadata BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Create tenant quotas table
+CREATE TABLE tenant_quotas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+  max_users INTEGER NOT NULL DEFAULT 50,
+  max_workflows INTEGER NOT NULL DEFAULT 100,
+  max_jobs INTEGER NOT NULL DEFAULT 1000,
+  max_storage BIGINT NOT NULL DEFAULT 10737418240,
+  max_webhooks INTEGER NOT NULL DEFAULT 50,
+  storage_used BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_tenants_parent_tenant_id ON tenants(parent_tenant_id);
+CREATE INDEX idx_tenants_level ON tenants(level);
+CREATE INDEX idx_tenants_status ON tenants(status);
+CREATE INDEX idx_tenant_members_tenant_id ON tenant_members(tenant_id);
+CREATE INDEX idx_tenant_members_user_id ON tenant_members(user_id);
+CREATE INDEX idx_tenant_isolation_configs_tenant_id ON tenant_isolation_configs(tenant_id);
+CREATE INDEX idx_tenant_quotas_tenant_id ON tenant_quotas(tenant_id);
+
+-- Add comment documenting the schema
+COMMENT ON TABLE tenants IS 'Multi-level tenant hierarchy supporting organization > workspace > team > project';
+COMMENT ON TABLE tenant_members IS 'Tracks user memberships in tenants with role assignments';
+COMMENT ON TABLE tenant_isolation_configs IS 'Isolation and access control configuration for each tenant';
+COMMENT ON TABLE tenant_quotas IS 'Resource quotas and usage tracking for each tenant';
+
+
 -- Create indexes for performance
 CREATE INDEX idx_roles_org_id ON roles(org_id);
 CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
