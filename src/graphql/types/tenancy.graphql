@@ -1,0 +1,152 @@
+enum TenancyLevel {
+  ORGANIZATION
+  WORKSPACE
+  TEAM
+  PROJECT
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum DataIsolation {
+  STRICT
+  SHARED
+  HYBRID
+}
+
+type Tenant {
+  id: String!
+  name: String!
+  slug: String!
+  description: String
+  level: TenancyLevel!
+  parentTenantId: String
+  status: TenantStatus!
+  metadata: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type TenantMember {
+  id: String!
+  tenantId: String!
+  userId: String!
+  role: String!
+  joinedAt: String!
+}
+
+type TenantIsolationConfig {
+  dataIsolation: DataIsolation!
+  resourceSharing: Boolean!
+  crossTenantAccess: Boolean!
+  customMetadata: Boolean!
+}
+
+type TenantQuota {
+  tenantId: String!
+  maxUsers: Int!
+  maxWorkflows: Int!
+  maxJobs: Int!
+  maxStorage: Int!
+  maxWebhooks: Int!
+  storageUsed: Int!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type TenantContext {
+  tenantId: String!
+  userId: String!
+  tenantLevel: TenancyLevel!
+  parentTenantId: String
+  memberRole: String!
+  isolationConfig: TenantIsolationConfig!
+  permissions: [String!]!
+}
+
+type QuotaCheckResult {
+  available: Boolean!
+  current: Int!
+  limit: Int!
+}
+
+input CreateTenantInput {
+  name: String!
+  slug: String!
+  level: TenancyLevel!
+  parentTenantId: String
+  description: String
+  metadata: String
+}
+
+input UpdateIsolationConfigInput {
+  dataIsolation: DataIsolation
+  resourceSharing: Boolean
+  crossTenantAccess: Boolean
+  customMetadata: Boolean
+}
+
+input AddTenantMemberInput {
+  userId: String!
+  role: String!
+}
+
+type OperationResult {
+  success: Boolean!
+  message: String
+}
+
+extend type Query {
+  # Get a specific tenant
+  tenant(id: String!): Tenant
+
+  # Get tenant by slug
+  tenantBySlug(slug: String!): Tenant
+
+  # Get child tenants of a parent
+  childTenants(parentId: String!, level: TenancyLevel): [Tenant!]!
+
+  # Get all tenants for current user
+  myTenants(level: TenancyLevel): [Tenant!]!
+
+  # Get members of a tenant
+  tenantMembers(tenantId: String!): [TenantMember!]!
+
+  # Get tenant isolation config
+  tenantIsolationConfig(tenantId: String!): TenantIsolationConfig
+
+  # Get tenant quota
+  tenantQuota(tenantId: String!): TenantQuota
+
+  # Check quota for resource
+  checkQuota(tenantId: String!, resource: String!, amount: Int): QuotaCheckResult!
+
+  # Get tenant context for current request
+  tenantContext(tenantId: String!): TenantContext!
+}
+
+extend type Mutation {
+  # Create a new tenant
+  createTenant(input: CreateTenantInput!): Tenant!
+
+  # Add member to tenant
+  addTenantMember(tenantId: String!, input: AddTenantMemberInput!): TenantMember!
+
+  # Remove member from tenant
+  removeTenantMember(tenantId: String!, userId: String!): OperationResult!
+
+  # Update tenant isolation config
+  updateTenantIsolationConfig(tenantId: String!, input: UpdateIsolationConfigInput!): TenantIsolationConfig!
+
+  # Suspend a tenant
+  suspendTenant(tenantId: String!): Tenant!
+
+  # Archive a tenant
+  archiveTenant(tenantId: String!): Tenant!
+
+  # Activate a tenant
+  activateTenant(tenantId: String!): Tenant!
+}
