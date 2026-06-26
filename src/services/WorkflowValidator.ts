@@ -1,5 +1,8 @@
-import { CreateWorkflowInput, WorkflowDefinition, WorkflowJobDefinition } from "../models/Workflow";
-
+import {
+  CreateWorkflowInput,
+  WorkflowDefinition,
+  WorkflowJobDefinition,
+} from "../models/Workflow.js";
 
 export interface ValidationResult {
   isValid: boolean;
@@ -35,7 +38,7 @@ export class WorkflowValidator {
   private validateJob(
     key: string,
     job: WorkflowJobDefinition,
-    errors: string[]
+    errors: string[],
   ) {
     if (!job.id || job.id !== key) {
       errors.push(`Job key '${key}' does not match id '${job.id}'`);
@@ -58,7 +61,7 @@ export class WorkflowValidator {
     if (!job.steps || job.steps.length === 0) {
       errors.push(`Job '${key}' must have at least one step`);
     } else {
-      job.steps.forEach((step, i) => {
+      job.steps.forEach((step: { run?: string }, i: number) => {
         if (!step.run || step.run.trim() === "") {
           errors.push(`Job '${key}' has invalid step at index ${i}`);
         }
@@ -82,7 +85,7 @@ export class WorkflowValidator {
 
   private checkDependencies(
     jobs: Record<string, WorkflowJobDefinition>,
-    errors: string[]
+    errors: string[],
   ) {
     for (const [key, job] of Object.entries(jobs)) {
       if (!job.depends_on) continue;
@@ -101,7 +104,7 @@ export class WorkflowValidator {
 
   private checkCycles(
     jobs: Record<string, WorkflowJobDefinition>,
-    errors: string[]
+    errors: string[],
   ) {
     const visited = new Set<string>();
     const stack = new Set<string>();
