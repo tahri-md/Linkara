@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -26,7 +26,7 @@ const toNumber = (value: string | undefined, fallback: number): number => {
 };
 
 export const redisConfig: RedisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
+  host: process.env.REDIS_HOST || "localhost",
   port: toNumber(process.env.REDIS_PORT, 6379),
   password: process.env.REDIS_PASSWORD || undefined,
   db: toNumber(process.env.REDIS_DB, 0),
@@ -34,12 +34,27 @@ export const redisConfig: RedisConfig = {
 
 export const queueConfig: QueueConfig = {
   jobExecutionConcurrency: toNumber(process.env.JOB_EXECUTION_CONCURRENCY, 5),
-  logProcessingConcurrency: toNumber(process.env.LOG_PROCESSING_CONCURRENCY, 10),
+  logProcessingConcurrency: toNumber(
+    process.env.LOG_PROCESSING_CONCURRENCY,
+    10,
+  ),
   defaultAttempts: toNumber(process.env.QUEUE_DEFAULT_ATTEMPTS, 3),
   defaultBackoffMs: toNumber(process.env.QUEUE_DEFAULT_BACKOFF_MS, 2000),
 };
 
 export const queueNames = {
-  jobExecution: 'job-execution-queue',
-  logProcessing: 'log-processing-queue',
+  jobExecution: "job-execution-queue",
+  logProcessing: "log-processing-queue",
 } as const;
+
+// Plain connection options for bullmq (avoids the ioredis version conflict
+// that occurs when passing an ioredis instance from the top-level redis.ts).
+// bullmq v5 bundles its own ioredis internally and expects raw options here.
+export const bullmqConnectionOptions = {
+  host: process.env.REDIS_HOST || "localhost",
+  port: toNumber(process.env.REDIS_PORT, 6379),
+  password: process.env.REDIS_PASSWORD || undefined,
+  db: toNumber(process.env.REDIS_DB, 0),
+  maxRetriesPerRequest: null as null,
+  enableReadyCheck: false,
+};
