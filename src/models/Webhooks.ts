@@ -6,7 +6,6 @@ export type WebhookProvider = "github" | "gitlab" | "bitbucket";
 
 export type WebhookEventStatus = "success" | "failed";
 
-
 // ===============================
 // Core Models
 // ===============================
@@ -46,7 +45,6 @@ export interface WebhookEvent {
   created_at: Date;
 }
 
-
 // ===============================
 // Inputs (API Layer)
 // ===============================
@@ -84,7 +82,6 @@ export interface CreateWebhookEventInput {
   status: WebhookEventStatus;
 }
 
-
 // ===============================
 // Responses
 // ===============================
@@ -98,7 +95,6 @@ export interface WebhookEventListResponse {
   data: WebhookEvent[];
   total: number;
 }
-
 
 // ===============================
 // Runtime / Execution Types

@@ -6,7 +6,7 @@ export interface NotificationPreference {
   email_on_failure: boolean;
   slack_webhook_url?: string;
   teams_webhook_url?: string;
-  notify_on: 'all' | 'failure_only';
+  notify_on: "all" | "failure_only";
   created_at: Date;
   updated_at: Date;
 }
@@ -15,8 +15,8 @@ export interface NotificationLog {
   id: string;
   user_id: string;
   job_id: string;
-  notification_type: 'email' | 'slack' | 'teams';
-  status: 'sent' | 'failed';
+  notification_type: "email" | "slack" | "teams";
+  status: "sent" | "failed";
   sent_at: Date;
   error_message?: string;
 }
@@ -46,8 +46,8 @@ export interface SlackMessage {
 }
 
 export interface TeamsMessage {
-  '@type': string;
-  '@context': string;
+  "@type": string;
+  "@context": string;
   summary: string;
   sections: {
     activityTitle: string;
@@ -65,5 +65,5 @@ export interface NotificationInput {
   email_on_failure: boolean;
   slack_webhook_url?: string;
   teams_webhook_url?: string;
-  notify_on: 'all' | 'failure_only';
+  notify_on: "all" | "failure_only";
 }

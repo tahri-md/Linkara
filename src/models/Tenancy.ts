@@ -1,5 +1,5 @@
-export type TenancyLevel = 'organization' | 'workspace' | 'team' | 'project';
-export type TenantStatus = 'active' | 'suspended' | 'archived';
+export type TenancyLevel = "organization" | "workspace" | "team" | "project";
+export type TenantStatus = "active" | "suspended" | "archived";
 
 export interface Tenant {
   id: string;
@@ -23,7 +23,7 @@ export interface TenantMember {
 }
 
 export interface TenantIsolationConfig {
-  dataIsolation: 'strict' | 'shared' | 'hybrid';
+  dataIsolation: "strict" | "shared" | "hybrid";
   resourceSharing: boolean;
   crossTenantAccess: boolean;
   customMetadata: boolean;
@@ -52,13 +52,16 @@ export interface TenantQuota {
 }
 
 export const DEFAULT_ISOLATION_CONFIG: TenantIsolationConfig = {
-  dataIsolation: 'strict',
+  dataIsolation: "strict",
   resourceSharing: false,
   crossTenantAccess: false,
   customMetadata: true,
 };
 
-export const DEFAULT_TENANT_QUOTA: Omit<TenantQuota, 'tenantId' | 'createdAt' | 'updatedAt'> = {
+export const DEFAULT_TENANT_QUOTA: Omit<
+  TenantQuota,
+  "tenantId" | "createdAt" | "updatedAt"
+> = {
   maxUsers: 50,
   maxWorkflows: 100,
   maxJobs: 1000,
@@ -67,9 +70,12 @@ export const DEFAULT_TENANT_QUOTA: Omit<TenantQuota, 'tenantId' | 'createdAt' | 
   storageUsed: 0,
 };
 
-export const TENANCY_LEVELS: Record<TenancyLevel, { order: number; parent?: TenancyLevel }> = {
+export const TENANCY_LEVELS: Record<
+  TenancyLevel,
+  { order: number; parent?: TenancyLevel }
+> = {
   organization: { order: 0 },
-  workspace: { order: 1, parent: 'organization' },
-  team: { order: 2, parent: 'workspace' },
-  project: { order: 3, parent: 'team' },
+  workspace: { order: 1, parent: "organization" },
+  team: { order: 2, parent: "workspace" },
+  project: { order: 3, parent: "team" },
 };

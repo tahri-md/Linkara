@@ -1,22 +1,22 @@
-import nodemailer from 'nodemailer';
-import axios from 'axios';
-import crypto from 'crypto';
-import { query } from '../db/connection.js';
+import nodemailer from "nodemailer";
+import axios from "axios";
+import crypto from "crypto";
+import { query } from "../db/connection.js";
 import type {
   NotificationPreference,
   NotificationLog,
   SlackMessage,
   TeamsMessage,
   NotificationInput,
-} from '../models/Notification.js';
-import { jobService } from './JobService.js';
+} from "../models/Notification.js";
+import { jobService } from "./JobService.js";
 
 export class NotificationService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
+      service: process.env.EMAIL_SERVICE || "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -27,79 +27,92 @@ export class NotificationService {
   async sendEmailNotification(
     userId: string,
     subject: string,
-    template: 'pipeline_success' | 'pipeline_failed' | 'job_failed',
+    template: "pipeline_success" | "pipeline_failed" | "job_failed",
     data: {
       pipelineRunId: string;
       workflowName: string;
       status: string;
       duration?: number;
       jobName?: string;
-    }
+    },
   ): Promise<void> {
     try {
-      const userResult = await query(`SELECT email FROM users WHERE id = $1`, [userId]);
+      const userResult = await query(`SELECT email FROM users WHERE id = $1`, [
+        userId,
+      ]);
       if (userResult.rows.length === 0) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       const email = userResult.rows[0].email;
       const htmlContent = this.getEmailTemplate(template, data);
 
       await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'noreply@linkara.dev',
+        from: process.env.EMAIL_FROM || "noreply@linkara.dev",
         to: email,
         subject,
         html: htmlContent,
       });
     } catch (error) {
-      console.error('Failed to send email notification:', error);
+      console.error("Failed to send email notification:", error);
       throw error;
     }
   }
 
-  async sendSlackNotification(webhookUrl: string, message: SlackMessage): Promise<void> {
+  async sendSlackNotification(
+    webhookUrl: string,
+    message: SlackMessage,
+  ): Promise<void> {
     try {
       if (!webhookUrl) {
-        throw new Error('Slack webhook URL is required');
+        throw new Error("Slack webhook URL is required");
       }
 
       await axios.post(webhookUrl, message, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
-      console.error('Failed to send Slack notification:', error);
+      console.error("Failed to send Slack notification:", error);
       throw error;
     }
   }
 
-  async sendTeamsNotification(webhookUrl: string, message: TeamsMessage): Promise<void> {
+  async sendTeamsNotification(
+    webhookUrl: string,
+    message: TeamsMessage,
+  ): Promise<void> {
     try {
       if (!webhookUrl) {
-        throw new Error('Teams webhook URL is required');
+        throw new Error("Teams webhook URL is required");
       }
 
       await axios.post(webhookUrl, message, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
-      console.error('Failed to send Teams notification:', error);
+      console.error("Failed to send Teams notification:", error);
       throw error;
     }
   }
 
-  async getNotificationPreferences(userId: string, orgId: string): Promise<NotificationPreference | null> {
+  async getNotificationPreferences(
+    userId: string,
+    orgId: string,
+  ): Promise<NotificationPreference | null> {
     const result = await query(
       `SELECT * FROM notification_preferences WHERE user_id = $1 AND org_id = $2`,
-      [userId, orgId]
+      [userId, orgId],
     );
 
-    return result.rows.length > 0 ? (result.rows[0] as NotificationPreference) : null;
+    return result.rows.length > 0
+      ? (result.rows[0] as NotificationPreference)
+      : null;
   }
 
   async setNotificationPreferences(
     userId: string,
     orgId: string,
-    preferences: NotificationInput
+    preferences: NotificationInput,
   ): Promise<NotificationPreference> {
     const id = this.generateUUID();
     const now = new Date();
@@ -126,7 +139,7 @@ export class NotificationService {
           now,
           userId,
           orgId,
-        ]
+        ],
       );
 
       return result.rows[0] as NotificationPreference;
@@ -148,17 +161,20 @@ export class NotificationService {
         preferences.notify_on,
         now,
         now,
-      ]
+      ],
     );
 
     return result.rows[0] as NotificationPreference;
   }
 
-  async notifyJobCompletion(jobId: string, status: 'success' | 'failure'): Promise<void> {
+  async notifyJobCompletion(
+    jobId: string,
+    status: "success" | "failure",
+  ): Promise<void> {
     try {
       const job = await jobService.getJobById(jobId);
       if (!job) {
-        throw new Error('Job not found');
+        throw new Error("Job not found");
       }
 
       const pipelineRunResult = await query(
@@ -166,11 +182,11 @@ export class NotificationService {
          FROM pipeline_runs pr
          JOIN workflows w ON w.id = pr.workflow_id
          WHERE pr.id = $1`,
-        [job.pipeline_run_id]
+        [job.pipeline_run_id],
       );
 
       if (pipelineRunResult.rows.length === 0) {
-        throw new Error('Pipeline run not found');
+        throw new Error("Pipeline run not found");
       }
 
       const pipelineRun = pipelineRunResult.rows[0];
@@ -178,13 +194,13 @@ export class NotificationService {
 
       const membersResult = await query(
         `SELECT user_id FROM org_members WHERE org_id = $1`,
-        [orgId]
+        [orgId],
       );
 
       const duration: number | undefined = job.duration_seconds ?? undefined;
 
-      const template: 'pipeline_success' | 'pipeline_failed' =
-        status === 'success' ? 'pipeline_success' : 'pipeline_failed';
+      const template: "pipeline_success" | "pipeline_failed" =
+        status === "success" ? "pipeline_success" : "pipeline_failed";
 
       for (const member of membersResult.rows) {
         const userId = member.user_id;
@@ -193,18 +209,18 @@ export class NotificationService {
         if (!prefs) continue;
 
         const shouldNotify =
-          prefs.notify_on === 'all' ||
-          (prefs.notify_on === 'failure_only' && status === 'failure');
+          prefs.notify_on === "all" ||
+          (prefs.notify_on === "failure_only" && status === "failure");
 
         if (!shouldNotify) continue;
 
         if (
-          (status === 'success' && prefs.email_on_success) ||
-          (status === 'failure' && prefs.email_on_failure)
+          (status === "success" && prefs.email_on_success) ||
+          (status === "failure" && prefs.email_on_failure)
         ) {
           try {
             const subject =
-              status === 'success'
+              status === "success"
                 ? `Pipeline Success: ${pipelineRun.workflow_name}`
                 : `Pipeline Failed: ${pipelineRun.workflow_name}`;
 
@@ -216,15 +232,18 @@ export class NotificationService {
               jobName: job.job_name,
             });
 
-            await this.logNotification(userId, jobId, 'email', 'sent');
+            await this.logNotification(userId, jobId, "email", "sent");
           } catch (error) {
-            console.error(`Failed to send email notification to ${userId}:`, error);
+            console.error(
+              `Failed to send email notification to ${userId}:`,
+              error,
+            );
             await this.logNotification(
               userId,
               jobId,
-              'email',
-              'failed',
-              error instanceof Error ? error.message : 'Unknown error'
+              "email",
+              "failed",
+              error instanceof Error ? error.message : "Unknown error",
             );
           }
         }
@@ -235,19 +254,25 @@ export class NotificationService {
               status,
               pipelineRun.workflow_name,
               job.job_name,
-              duration
+              duration,
             );
-            await this.sendSlackNotification(prefs.slack_webhook_url, slackMessage);
+            await this.sendSlackNotification(
+              prefs.slack_webhook_url,
+              slackMessage,
+            );
 
-            await this.logNotification(userId, jobId, 'slack', 'sent');
+            await this.logNotification(userId, jobId, "slack", "sent");
           } catch (error) {
-            console.error(`Failed to send Slack notification to ${userId}:`, error);
+            console.error(
+              `Failed to send Slack notification to ${userId}:`,
+              error,
+            );
             await this.logNotification(
               userId,
               jobId,
-              'slack',
-              'failed',
-              error instanceof Error ? error.message : 'Unknown error'
+              "slack",
+              "failed",
+              error instanceof Error ? error.message : "Unknown error",
             );
           }
         }
@@ -258,34 +283,40 @@ export class NotificationService {
               status,
               pipelineRun.workflow_name,
               job.job_name,
-              duration
+              duration,
             );
-            await this.sendTeamsNotification(prefs.teams_webhook_url, teamsMessage);
+            await this.sendTeamsNotification(
+              prefs.teams_webhook_url,
+              teamsMessage,
+            );
 
-            await this.logNotification(userId, jobId, 'teams', 'sent');
+            await this.logNotification(userId, jobId, "teams", "sent");
           } catch (error) {
-            console.error(`Failed to send Teams notification to ${userId}:`, error);
+            console.error(
+              `Failed to send Teams notification to ${userId}:`,
+              error,
+            );
             await this.logNotification(
               userId,
               jobId,
-              'teams',
-              'failed',
-              error instanceof Error ? error.message : 'Unknown error'
+              "teams",
+              "failed",
+              error instanceof Error ? error.message : "Unknown error",
             );
           }
         }
       }
     } catch (error) {
-      console.error('Error in notifyJobCompletion:', error);
+      console.error("Error in notifyJobCompletion:", error);
     }
   }
 
   private async logNotification(
     userId: string,
     jobId: string,
-    notificationType: 'email' | 'slack' | 'teams',
-    status: 'sent' | 'failed',
-    errorMessage?: string
+    notificationType: "email" | "slack" | "teams",
+    status: "sent" | "failed",
+    errorMessage?: string,
   ): Promise<void> {
     const id = this.generateUUID();
     const now = new Date();
@@ -293,7 +324,7 @@ export class NotificationService {
     await query(
       `INSERT INTO notification_logs (id, user_id, job_id, notification_type, status, sent_at, error_message)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, userId, jobId, notificationType, status, now, errorMessage || null]
+      [id, userId, jobId, notificationType, status, now, errorMessage || null],
     );
   }
 
@@ -305,10 +336,10 @@ export class NotificationService {
       status: string;
       duration?: number;
       jobName?: string;
-    }
+    },
   ): string {
-    const statusBgColor = data.status === 'success' ? '#4CAF50' : '#F44336';
-    const statusText = data.status === 'success' ? 'SUCCESS' : 'FAILED';
+    const statusBgColor = data.status === "success" ? "#4CAF50" : "#F44336";
+    const statusText = data.status === "success" ? "SUCCESS" : "FAILED";
 
     return `
       <html>
@@ -319,9 +350,9 @@ export class NotificationService {
               <h3 style="margin: 0;">Status: ${statusText}</h3>
             </div>
             <p><strong>Workflow:</strong> ${data.workflowName}</p>
-            ${data.jobName ? `<p><strong>Job:</strong> ${data.jobName}</p>` : ''}
+            ${data.jobName ? `<p><strong>Job:</strong> ${data.jobName}</p>` : ""}
             <p><strong>Pipeline Run ID:</strong> ${data.pipelineRunId}</p>
-            ${data.duration ? `<p><strong>Duration:</strong> ${data.duration} seconds</p>` : ''}
+            ${data.duration ? `<p><strong>Duration:</strong> ${data.duration} seconds</p>` : ""}
             <p><small>This is an automated message from Linkara CI/CD Platform</small></p>
           </div>
         </body>
@@ -333,10 +364,11 @@ export class NotificationService {
     status: string,
     workflowName: string,
     jobName: string,
-    duration?: number
+    duration?: number,
   ): SlackMessage {
-    const color = status === 'success' ? '#36a64f' : '#ff0000';
-    const title = status === 'success' ? '✅ Pipeline Success' : '❌ Pipeline Failed';
+    const color = status === "success" ? "#36a64f" : "#ff0000";
+    const title =
+      status === "success" ? "✅ Pipeline Success" : "❌ Pipeline Failed";
 
     return {
       text: `${title}: ${workflowName}`,
@@ -345,12 +377,12 @@ export class NotificationService {
           color,
           title,
           fields: [
-            { title: 'Workflow', value: workflowName, short: true },
-            { title: 'Job', value: jobName, short: true },
-            { title: 'Status', value: status.toUpperCase(), short: true },
+            { title: "Workflow", value: workflowName, short: true },
+            { title: "Job", value: jobName, short: true },
+            { title: "Status", value: status.toUpperCase(), short: true },
             {
-              title: 'Duration',
-              value: duration ? `${duration}s` : 'N/A',
+              title: "Duration",
+              value: duration ? `${duration}s` : "N/A",
               short: true,
             },
           ],
@@ -363,24 +395,25 @@ export class NotificationService {
     status: string,
     workflowName: string,
     jobName: string,
-    duration?: number
+    duration?: number,
   ): TeamsMessage {
-    const themeColor = status === 'success' ? '36a64f' : 'ff0000';
-    const title = status === 'success' ? '✅ Pipeline Success' : '❌ Pipeline Failed';
+    const themeColor = status === "success" ? "36a64f" : "ff0000";
+    const title =
+      status === "success" ? "✅ Pipeline Success" : "❌ Pipeline Failed";
 
     return {
-      '@type': 'MessageCard',
-      '@context': 'https://schema.org/extensions',
+      "@type": "MessageCard",
+      "@context": "https://schema.org/extensions",
       summary: `${title}: ${workflowName}`,
       sections: [
         {
           activityTitle: title,
           activitySubtitle: workflowName,
           facts: [
-            { name: 'Workflow', value: workflowName },
-            { name: 'Job', value: jobName },
-            { name: 'Status', value: status.toUpperCase() },
-            { name: 'Duration', value: duration ? `${duration}s` : 'N/A' },
+            { name: "Workflow", value: workflowName },
+            { name: "Job", value: jobName },
+            { name: "Status", value: status.toUpperCase() },
+            { name: "Duration", value: duration ? `${duration}s` : "N/A" },
           ],
         },
       ],

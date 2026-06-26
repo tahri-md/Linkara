@@ -21,7 +21,6 @@ export const resolvers = {
     ...notificationResolvers.Query,
     ...rbacResolvers.Query,
     ...tenancyResolvers.Query,
-
   },
   Mutation: {
     ...authResolvers.Mutation,
@@ -33,10 +32,12 @@ export const resolvers = {
     ...notificationResolvers.Mutation,
     ...rbacResolvers.Mutation,
     ...tenancyResolvers.Mutation,
-
-
-
   },
+  User: authResolvers.User,
+  Job: jobResolvers.Job,
+  Workflow: workflowResolvers.Workflow,
+  WorkflowDefinition: workflowResolvers.WorkflowDefinition,
+  WorkflowTrigger: workflowResolvers.WorkflowTrigger,
   Organization: organizationResolvers.Organization,
   PipelineRun: pipelineResolvers.PipelineRun,
   Webhook: webhookResolvers.Webhook,

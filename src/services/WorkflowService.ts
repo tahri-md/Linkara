@@ -1,4 +1,4 @@
-import { query } from '../db/connection.js';
+import { query } from "../db/connection.js";
 import {
   Workflow,
   CreateWorkflowInput,
@@ -6,8 +6,8 @@ import {
   WorkflowResponse,
   WorkflowListResponse,
   WorkflowDefinition,
-} from '../models/Workflow.js';
-import { WorkflowValidator } from './WorkflowValidator.js';
+} from "../models/Workflow.js";
+import { WorkflowValidator } from "./WorkflowValidator.js";
 
 export class WorkflowService {
   private validator = new WorkflowValidator();
@@ -15,20 +15,31 @@ export class WorkflowService {
   async createWorkflow(
     orgId: string,
     userId: string,
-    input: CreateWorkflowInput
+    input: CreateWorkflowInput,
   ): Promise<WorkflowResponse> {
+    if (Array.isArray(input.definition.jobs)) {
+      const jobsMap: Record<string, any> = {};
+      for (const job of input.definition.jobs) {
+        jobsMap[job.id] = job;
+      }
+      input.definition.jobs = jobsMap as any;
+    }
     const validation = this.validator.validate(input.definition);
     if (!validation.isValid) {
-      throw new Error(`Invalid workflow definition: ${validation.errors.join(', ')}`);
+      throw new Error(
+        `Invalid workflow definition: ${validation.errors.join(", ")}`,
+      );
     }
 
     const existingResult = await query(
       `SELECT id FROM workflows WHERE org_id = $1 AND name = $2`,
-      [orgId, input.name]
+      [orgId, input.name],
     );
 
     if (existingResult.rows.length > 0) {
-      throw new Error(`Workflow with name "${input.name}" already exists in this organization`);
+      throw new Error(
+        `Workflow with name "${input.name}" already exists in this organization`,
+      );
     }
 
     const result = await query(
@@ -43,25 +54,26 @@ export class WorkflowService {
         JSON.stringify(input.triggers || []),
         input.is_active ?? true,
         userId,
-      ]
+      ],
     );
 
-    await this.logAuditEvent(
-      orgId,
-      userId,
-      'workflow.created',
-      { workflow_id: result.rows[0].id, name: input.name }
-    );
+    await this.logAuditEvent(orgId, userId, "workflow.created", {
+      workflow_id: result.rows[0].id,
+      name: input.name,
+    });
 
     return this.formatWorkflow(result.rows[0]);
   }
 
-  async getWorkflow(workflowId: string, orgId: string): Promise<WorkflowResponse | null> {
+  async getWorkflow(
+    workflowId: string,
+    orgId: string,
+  ): Promise<WorkflowResponse | null> {
     const result = await query(
       `SELECT id, org_id, name, description, definition, triggers, is_active, created_by, created_at, updated_at
        FROM workflows
        WHERE id = $1 AND org_id = $2`,
-      [workflowId, orgId]
+      [workflowId, orgId],
     );
 
     if (result.rows.length === 0) {
@@ -75,13 +87,15 @@ export class WorkflowService {
     orgId: string,
     activeOnly: boolean = false,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
   ): Promise<WorkflowListResponse> {
-    const whereClause = activeOnly ? 'WHERE org_id = $1 AND is_active = true' : 'WHERE org_id = $1';
+    const whereClause = activeOnly
+      ? "WHERE org_id = $1 AND is_active = true"
+      : "WHERE org_id = $1";
 
     const countResult = await query(
       `SELECT COUNT(*) as count FROM workflows ${whereClause}`,
-      [orgId]
+      [orgId],
     );
     const total = parseInt(countResult.rows[0].count, 10);
 
@@ -91,7 +105,7 @@ export class WorkflowService {
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
-      [orgId, limit, offset]
+      [orgId, limit, offset],
     );
 
     return {
@@ -104,27 +118,31 @@ export class WorkflowService {
     workflowId: string,
     orgId: string,
     userId: string,
-    input: UpdateWorkflowInput
+    input: UpdateWorkflowInput,
   ): Promise<WorkflowResponse> {
     const currentWorkflow = await this.getWorkflow(workflowId, orgId);
     if (!currentWorkflow) {
-      throw new Error('Workflow not found');
+      throw new Error("Workflow not found");
     }
 
     if (input.definition) {
       const validation = this.validator.validate(input.definition);
       if (!validation.isValid) {
-        throw new Error(`Invalid workflow definition: ${validation.errors.join(', ')}`);
+        throw new Error(
+          `Invalid workflow definition: ${validation.errors.join(", ")}`,
+        );
       }
     }
 
     if (input.name && input.name !== currentWorkflow.name) {
       const existingResult = await query(
         `SELECT id FROM workflows WHERE org_id = $1 AND name = $2 AND id != $3`,
-        [orgId, input.name, workflowId]
+        [orgId, input.name, workflowId],
       );
       if (existingResult.rows.length > 0) {
-        throw new Error(`Workflow with name "${input.name}" already exists in this organization`);
+        throw new Error(
+          `Workflow with name "${input.name}" already exists in this organization`,
+        );
       }
     }
 
@@ -168,7 +186,7 @@ export class WorkflowService {
 
     const updateQuery = `
       UPDATE workflows
-      SET ${updates.join(', ')}
+      SET ${updates.join(", ")}
       WHERE id = $${paramCount + 1} AND org_id = $${paramCount + 2}
       RETURNING id, org_id, name, description, definition, triggers, is_active, created_by, created_at, updated_at
     `;
@@ -176,15 +194,13 @@ export class WorkflowService {
     const result = await query(updateQuery, params);
 
     if (result.rows.length === 0) {
-      throw new Error('Failed to update workflow');
+      throw new Error("Failed to update workflow");
     }
 
-    await this.logAuditEvent(
-      orgId,
-      userId,
-      'workflow.updated',
-      { workflow_id: workflowId, changes: input }
-    );
+    await this.logAuditEvent(orgId, userId, "workflow.updated", {
+      workflow_id: workflowId,
+      changes: input,
+    });
 
     return this.formatWorkflow(result.rows[0]);
   }
@@ -193,24 +209,24 @@ export class WorkflowService {
     workflowId: string,
     orgId: string,
     userId: string,
-    hardDelete: boolean = false
+    hardDelete: boolean = false,
   ): Promise<boolean> {
     const workflow = await this.getWorkflow(workflowId, orgId);
     if (!workflow) {
-      throw new Error('Workflow not found');
+      throw new Error("Workflow not found");
     }
 
     if (hardDelete) {
       const result = await query(
         `DELETE FROM workflows WHERE id = $1 AND org_id = $2`,
-        [workflowId, orgId]
+        [workflowId, orgId],
       );
 
       if (result.rowCount === 0) {
-        throw new Error('Failed to delete workflow');
+        throw new Error("Failed to delete workflow");
       }
 
-      await this.logAuditEvent(orgId, userId, 'workflow.deleted', {
+      await this.logAuditEvent(orgId, userId, "workflow.deleted", {
         workflow_id: workflowId,
         name: workflow.name,
         permanently: true,
@@ -218,14 +234,14 @@ export class WorkflowService {
     } else {
       const result = await query(
         `UPDATE workflows SET is_active = false, updated_at = NOW() WHERE id = $1 AND org_id = $2`,
-        [workflowId, orgId]
+        [workflowId, orgId],
       );
 
       if (result.rowCount === 0) {
-        throw new Error('Failed to delete workflow');
+        throw new Error("Failed to delete workflow");
       }
 
-      await this.logAuditEvent(orgId, userId, 'workflow.deleted', {
+      await this.logAuditEvent(orgId, userId, "workflow.deleted", {
         workflow_id: workflowId,
         name: workflow.name,
         permanently: false,
@@ -238,21 +254,21 @@ export class WorkflowService {
   async restoreWorkflow(
     workflowId: string,
     orgId: string,
-    userId: string
+    userId: string,
   ): Promise<WorkflowResponse> {
     const result = await query(
       `UPDATE workflows
        SET is_active = true, updated_at = NOW()
        WHERE id = $1 AND org_id = $2 AND is_active = false
        RETURNING id, org_id, name, description, definition, triggers, is_active, created_by, created_at, updated_at`,
-      [workflowId, orgId]
+      [workflowId, orgId],
     );
 
     if (result.rows.length === 0) {
-      throw new Error('Workflow not found or is already active');
+      throw new Error("Workflow not found or is already active");
     }
 
-    await this.logAuditEvent(orgId, userId, 'workflow.restored', {
+    await this.logAuditEvent(orgId, userId, "workflow.restored", {
       workflow_id: workflowId,
       name: result.rows[0].name,
     });
@@ -264,16 +280,16 @@ export class WorkflowService {
     orgId: string,
     userId: string,
     action: string,
-    metadata: Record<string, any>
+    metadata: Record<string, any>,
   ): Promise<void> {
     try {
       await query(
         `INSERT INTO audit_logs (org_id, user_id, action, changes, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
-        [orgId, userId, action, JSON.stringify(metadata)]
+        [orgId, userId, action, JSON.stringify(metadata)],
       );
     } catch (err) {
-      console.error('Failed to log audit event:', err);
+      console.error("Failed to log audit event:", err);
     }
   }
 
@@ -283,8 +299,14 @@ export class WorkflowService {
       org_id: row.org_id,
       name: row.name,
       description: row.description,
-      definition: typeof row.definition === 'string' ? JSON.parse(row.definition) : row.definition,
-      triggers: typeof row.triggers === 'string' ? JSON.parse(row.triggers) : row.triggers,
+      definition:
+        typeof row.definition === "string"
+          ? JSON.parse(row.definition)
+          : row.definition,
+      triggers:
+        typeof row.triggers === "string"
+          ? JSON.parse(row.triggers)
+          : row.triggers,
       is_active: row.is_active,
       created_by: row.created_by,
       created_at: new Date(row.created_at),

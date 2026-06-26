@@ -1,14 +1,8 @@
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
-import type { Job } from './Job.js';
+import type { Job } from "./Job.js";
 
-
-export type TriggerType =
-  | 'manual'
-  | 'scheduled'
-  | 'webhook'
-  | 'api';
-
+export type TriggerType = "manual" | "scheduled" | "webhook" | "api";
 
 // ─── Core Workflow Definition (JSON Structure) ───────────────────────────────
 
@@ -29,14 +23,12 @@ export interface WorkflowDefinition {
   jobs: Record<string, WorkflowJobDefinition>;
 }
 
-
 // ─── Triggers ────────────────────────────────────────────────────────────────
 
 export interface WorkflowTrigger {
   type: TriggerType;
   config?: Record<string, unknown>;
 }
-
 
 // ─── Database Entities ───────────────────────────────────────────────────────
 
@@ -57,9 +49,6 @@ export interface Workflow {
   created_at: Date;
   updated_at: Date;
 }
-
-
-
 
 // ─── Inputs ──────────────────────────────────────────────────────────────────
 
@@ -83,9 +72,6 @@ export interface UpdateWorkflowInput {
   is_active?: boolean;
 }
 
-
-
-
 // ─── Responses ───────────────────────────────────────────────────────────────
 
 export interface WorkflowResponse extends Workflow {}
@@ -94,4 +80,3 @@ export interface WorkflowListResponse {
   data: WorkflowResponse[];
   total: number;
 }
-

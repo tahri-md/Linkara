@@ -1,16 +1,20 @@
-import type { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/AuthService.js';
+import type { Request, Response, NextFunction } from "express";
+import { AuthService } from "../services/AuthService.js";
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
 
 export function authMiddleware() {
-  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       const authHeader = req.headers.authorization;
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
         next();
         return;
       }
@@ -25,9 +29,13 @@ export function authMiddleware() {
   };
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+export function requireAuth(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): void {
   if (!req.userId) {
-    res.status(401).json({ error: 'Authentication required' });
+    res.status(401).json({ error: "Authentication required" });
     return;
   }
   next();

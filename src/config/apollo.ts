@@ -1,13 +1,13 @@
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import type { GraphQLFormattedError } from 'graphql';
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@apollo/server/express4";
+import type { GraphQLFormattedError } from "graphql";
 
 export function createApolloServer(typeDefs: string, resolvers: any) {
   const server = new ApolloServer<any>({
     typeDefs,
     resolvers,
     formatError: (formattedError: GraphQLFormattedError, error: unknown) => {
-      console.error('GraphQL Error:', formattedError.message);
+      console.error("GraphQL Error:", formattedError.message);
       return formattedError;
     },
   });

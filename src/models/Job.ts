@@ -1,9 +1,9 @@
 export type JobStatus =
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
+  | "pending"
+  | "running"
+  | "success"
+  | "failed"
+  | "cancelled";
 
 export interface Job {
   id: string;
@@ -16,8 +16,7 @@ export interface Job {
   started_at: Date | null;
   completed_at: Date | null;
   duration_seconds: number | null;
-  retry_count:number|null;
+  retry_count: number | null;
   exit_code: number | null;
   created_at: Date;
 }
-

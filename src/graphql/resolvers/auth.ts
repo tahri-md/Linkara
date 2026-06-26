@@ -15,7 +15,6 @@ export interface LoginArgs {
   email: string;
   password: string;
 }
-
 export const authResolvers: any = {
   Query: {
     async me(_: any, __: any, context: Context): Promise<UserPublic | null> {
@@ -41,5 +40,11 @@ export const authResolvers: any = {
     async login(_: any, args: LoginArgs): Promise<{ token: string; user: UserPublic }> {
       return await AuthService.login(args.email, args.password);
     },
+  },
+
+  // Map snake_case DB columns → camelCase GraphQL fields
+  User: {
+    createdAt: (parent: any) => parent.created_at,
+    avatarUrl: (parent: any) => parent.avatar_url,
   },
 };

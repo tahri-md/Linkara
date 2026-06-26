@@ -217,4 +217,17 @@ export const workflowResolvers: any = {
       );
     },
   },
+    Workflow: {
+    created_at: (p: any) => p.created_at,
+    updated_at: (p: any) => p.updated_at,
+  },
+  WorkflowDefinition: {
+    jobs: (p: any) => {
+      if (Array.isArray(p.jobs)) return p.jobs;
+      return Object.values(p.jobs || {});
+    },
+  },
+  WorkflowTrigger: {
+    config: (p: any) => (p.config ? JSON.stringify(p.config) : null),
+  },
 };

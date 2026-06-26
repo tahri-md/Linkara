@@ -1,4 +1,4 @@
-import { query } from '../db/connection.js';
+import { query } from "../db/connection.js";
 
 export interface JobArtifact {
   id: string;
@@ -18,15 +18,26 @@ export interface ArtifactMetadata {
 }
 
 export class ArtifactService {
-  async storeArtifact(jobId: string, metadata: ArtifactMetadata): Promise<JobArtifact> {
+  async storeArtifact(
+    jobId: string,
+    metadata: ArtifactMetadata,
+  ): Promise<JobArtifact> {
     try {
-      console.log(`[artifacts] Storing artifact for job ${jobId}: ${metadata.name}`);
+      console.log(
+        `[artifacts] Storing artifact for job ${jobId}: ${metadata.name}`,
+      );
 
       const result = await query(
         `INSERT INTO job_artifacts (job_id, name, file_path, file_size_bytes, s3_url, uploaded_at)
          VALUES ($1, $2, $3, $4, $5, NOW())
          RETURNING id, job_id, name, file_path, file_size_bytes, s3_url, uploaded_at`,
-        [jobId, metadata.name, metadata.filePath, metadata.fileSizeBytes, metadata.s3Url || null]
+        [
+          jobId,
+          metadata.name,
+          metadata.filePath,
+          metadata.fileSizeBytes,
+          metadata.s3Url || null,
+        ],
       );
 
       console.log(`[artifacts] Artifact stored: ${result.rows[0].id}`);
@@ -44,7 +55,7 @@ export class ArtifactService {
          FROM job_artifacts
          WHERE job_id = $1
          ORDER BY uploaded_at DESC`,
-        [jobId]
+        [jobId],
       );
 
       return result.rows as JobArtifact[];
@@ -67,7 +78,10 @@ export class ArtifactService {
     }
   }
 
-  async collectArtifacts(jobId: string, containerLogs: string): Promise<ArtifactMetadata[]> {
+  async collectArtifacts(
+    jobId: string,
+    containerLogs: string,
+  ): Promise<ArtifactMetadata[]> {
     const artifacts: ArtifactMetadata[] = [];
 
     try {
@@ -80,7 +94,7 @@ export class ArtifactService {
         artifacts.push({
           name: match[1],
           fileSizeBytes: parseInt(match[2], 10),
-          filePath: match[3] || '',
+          filePath: match[3] || "",
           s3Url: undefined,
         });
       }
@@ -104,7 +118,7 @@ export class ArtifactService {
         `SELECT COALESCE(SUM(file_size_bytes), 0) as total_size
          FROM job_artifacts
          WHERE job_id = $1`,
-        [jobId]
+        [jobId],
       );
 
       return parseInt(result.rows[0].total_size, 10);

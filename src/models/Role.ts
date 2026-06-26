@@ -1,53 +1,53 @@
 export enum Permission {
   // Organization Management
-  ORG_READ = 'org:read',
-  ORG_UPDATE = 'org:update',
-  ORG_DELETE = 'org:delete',
-  ORG_INVITE_MEMBER = 'org:invite_member',
-  ORG_REMOVE_MEMBER = 'org:remove_member',
+  ORG_READ = "org:read",
+  ORG_UPDATE = "org:update",
+  ORG_DELETE = "org:delete",
+  ORG_INVITE_MEMBER = "org:invite_member",
+  ORG_REMOVE_MEMBER = "org:remove_member",
 
   // Workflow Management
-  WORKFLOW_CREATE = 'workflow:create',
-  WORKFLOW_READ = 'workflow:read',
-  WORKFLOW_UPDATE = 'workflow:update',
-  WORKFLOW_DELETE = 'workflow:delete',
-  WORKFLOW_EXECUTE = 'workflow:execute',
+  WORKFLOW_CREATE = "workflow:create",
+  WORKFLOW_READ = "workflow:read",
+  WORKFLOW_UPDATE = "workflow:update",
+  WORKFLOW_DELETE = "workflow:delete",
+  WORKFLOW_EXECUTE = "workflow:execute",
 
   // Job Management
-  JOB_CREATE = 'job:create',
-  JOB_READ = 'job:read',
-  JOB_UPDATE = 'job:update',
-  JOB_DELETE = 'job:delete',
-  JOB_CANCEL = 'job:cancel',
-  JOB_RETRY = 'job:retry',
+  JOB_CREATE = "job:create",
+  JOB_READ = "job:read",
+  JOB_UPDATE = "job:update",
+  JOB_DELETE = "job:delete",
+  JOB_CANCEL = "job:cancel",
+  JOB_RETRY = "job:retry",
 
   // Member Management
-  MEMBER_INVITE = 'member:invite',
-  MEMBER_REMOVE = 'member:remove',
-  MEMBER_UPDATE = 'member:update',
-  MEMBER_ASSIGN_ROLE = 'member:assign_role',
+  MEMBER_INVITE = "member:invite",
+  MEMBER_REMOVE = "member:remove",
+  MEMBER_UPDATE = "member:update",
+  MEMBER_ASSIGN_ROLE = "member:assign_role",
 
   // Settings
-  SETTINGS_READ = 'settings:read',
-  SETTINGS_UPDATE = 'settings:update',
+  SETTINGS_READ = "settings:read",
+  SETTINGS_UPDATE = "settings:update",
 
   // Webhook Management
-  WEBHOOK_CREATE = 'webhook:create',
-  WEBHOOK_READ = 'webhook:read',
-  WEBHOOK_UPDATE = 'webhook:update',
-  WEBHOOK_DELETE = 'webhook:delete',
+  WEBHOOK_CREATE = "webhook:create",
+  WEBHOOK_READ = "webhook:read",
+  WEBHOOK_UPDATE = "webhook:update",
+  WEBHOOK_DELETE = "webhook:delete",
 
   // Secrets Management
-  SECRETS_CREATE = 'secrets:create',
-  SECRETS_READ = 'secrets:read',
-  SECRETS_UPDATE = 'secrets:update',
-  SECRETS_DELETE = 'secrets:delete',
+  SECRETS_CREATE = "secrets:create",
+  SECRETS_READ = "secrets:read",
+  SECRETS_UPDATE = "secrets:update",
+  SECRETS_DELETE = "secrets:delete",
 }
 
 export enum PredefinedRole {
-  ADMIN = 'admin',
-  EDITOR = 'editor',
-  VIEWER = 'viewer',
+  ADMIN = "admin",
+  EDITOR = "editor",
+  VIEWER = "viewer",
 }
 
 export interface Role {

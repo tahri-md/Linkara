@@ -1,12 +1,12 @@
-import { query } from '../db/connection.js';
-import type { JobLog, LogLevel, LogLineInput } from '../models/JobLog.js';
+import { query } from "../db/connection.js";
+import type { JobLog, LogLevel, LogLineInput } from "../models/JobLog.js";
 
 export interface StreamLogsOptions {
   startingLineNumber?: number;
   onLogEntry?: (entry: JobLog) => void | Promise<void>;
 }
 
-type LogSource = 'stdout' | 'stderr';
+type LogSource = "stdout" | "stderr";
 
 interface PendingLogState {
   nextLineNumber: number;
@@ -21,22 +21,25 @@ export class LogStreamService {
   private detectLogLevel(message: string): LogLevel {
     const upperMessage = message.toUpperCase();
 
-    if (upperMessage.includes('ERROR') || upperMessage.includes('FATAL')) {
-      return 'error';
+    if (upperMessage.includes("ERROR") || upperMessage.includes("FATAL")) {
+      return "error";
     }
 
-    if (upperMessage.includes('WARN')) {
-      return 'warning';
+    if (upperMessage.includes("WARN")) {
+      return "warning";
     }
 
-    if (upperMessage.includes('DEBUG')) {
-      return 'debug';
+    if (upperMessage.includes("DEBUG")) {
+      return "debug";
     }
 
-    return 'info';
+    return "info";
   }
 
-  private getState(jobId: string, startingLineNumber: number = 0): PendingLogState {
+  private getState(
+    jobId: string,
+    startingLineNumber: number = 0,
+  ): PendingLogState {
     const existingState = this.pendingLogs.get(jobId);
 
     if (existingState) {
@@ -45,8 +48,8 @@ export class LogStreamService {
 
     const newState: PendingLogState = {
       nextLineNumber: startingLineNumber,
-      stdoutBuffer: '',
-      stderrBuffer: '',
+      stdoutBuffer: "",
+      stderrBuffer: "",
     };
 
     this.pendingLogs.set(jobId, newState);
@@ -54,11 +57,15 @@ export class LogStreamService {
   }
 
   private getBuffer(state: PendingLogState, source: LogSource): string {
-    return source === 'stderr' ? state.stderrBuffer : state.stdoutBuffer;
+    return source === "stderr" ? state.stderrBuffer : state.stdoutBuffer;
   }
 
-  private setBuffer(state: PendingLogState, source: LogSource, buffer: string): void {
-    if (source === 'stderr') {
+  private setBuffer(
+    state: PendingLogState,
+    source: LogSource,
+    buffer: string,
+  ): void {
+    if (source === "stderr") {
       state.stderrBuffer = buffer;
       return;
     }
@@ -67,14 +74,14 @@ export class LogStreamService {
   }
 
   private normalizeChunk(chunk: string): string {
-    return chunk.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return chunk.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   }
 
   private async insertLog(
     jobId: string,
     message: string,
     lineNumber: number,
-    level?: LogLevel
+    level?: LogLevel,
   ): Promise<JobLog> {
     const timestamp = new Date();
 
@@ -82,40 +89,60 @@ export class LogStreamService {
       `INSERT INTO job_logs (job_id, line_number, level, message, timestamp, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING id, job_id, line_number, timestamp, level, message, created_at`,
-      [jobId, lineNumber, level ?? this.detectLogLevel(message), message, timestamp]
+      [
+        jobId,
+        lineNumber,
+        level ?? this.detectLogLevel(message),
+        message,
+        timestamp,
+      ],
     );
 
     return result.rows[0] as JobLog;
   }
 
-  private async enqueueWrite<T>(jobId: string, operation: () => Promise<T>): Promise<T> {
+  private async enqueueWrite<T>(
+    jobId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
     const previousWrite = this.writeChains.get(jobId) ?? Promise.resolve();
     const currentWrite = previousWrite.then(operation, operation);
 
-    this.writeChains.set(jobId, currentWrite.then(() => undefined, () => undefined));
+    this.writeChains.set(
+      jobId,
+      currentWrite.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
 
     return currentWrite;
   }
 
   async appendLog(jobId: string, line: LogLineInput): Promise<JobLog> {
     return this.enqueueWrite(jobId, async () => {
-      return this.insertLog(jobId, line.message, line.lineNumber ?? 0, line.level);
+      return this.insertLog(
+        jobId,
+        line.message,
+        line.lineNumber ?? 0,
+        line.level,
+      );
     });
   }
 
   async appendChunk(
     jobId: string,
     chunk: string,
-    source: LogSource = 'stdout',
-    options: StreamLogsOptions = {}
+    source: LogSource = "stdout",
+    options: StreamLogsOptions = {},
   ): Promise<JobLog[]> {
     return this.enqueueWrite(jobId, async () => {
       const state = this.getState(jobId, options.startingLineNumber);
       const normalizedChunk = this.normalizeChunk(chunk);
       const currentBuffer = this.getBuffer(state, source) + normalizedChunk;
       const storedLogs: JobLog[] = [];
-      const lines = currentBuffer.split('\n');
-      const remainder = lines.pop() ?? '';
+      const lines = currentBuffer.split("\n");
+      const remainder = lines.pop() ?? "";
 
       for (const line of lines) {
         if (line.trim().length === 0) {
@@ -126,7 +153,7 @@ export class LogStreamService {
           jobId,
           line,
           state.nextLineNumber,
-          source === 'stderr' ? 'error' : undefined
+          source === "stderr" ? "error" : undefined,
         );
 
         state.nextLineNumber += 1;
@@ -143,7 +170,10 @@ export class LogStreamService {
     });
   }
 
-  async flush(jobId: string, options: StreamLogsOptions = {}): Promise<JobLog[]> {
+  async flush(
+    jobId: string,
+    options: StreamLogsOptions = {},
+  ): Promise<JobLog[]> {
     return this.enqueueWrite(jobId, async () => {
       const state = this.pendingLogs.get(jobId);
 
@@ -152,7 +182,7 @@ export class LogStreamService {
       }
 
       const remainingLogs: JobLog[] = [];
-      const sources: LogSource[] = ['stdout', 'stderr'];
+      const sources: LogSource[] = ["stdout", "stderr"];
 
       for (const source of sources) {
         const buffer = this.getBuffer(state, source).trim();
@@ -165,12 +195,12 @@ export class LogStreamService {
           jobId,
           buffer,
           state.nextLineNumber,
-          source === 'stderr' ? 'error' : undefined
+          source === "stderr" ? "error" : undefined,
         );
 
         state.nextLineNumber += 1;
         remainingLogs.push(logEntry);
-        this.setBuffer(state, source, '');
+        this.setBuffer(state, source, "");
 
         if (options.onLogEntry) {
           await options.onLogEntry(logEntry);
@@ -192,7 +222,7 @@ export class LogStreamService {
        FROM job_logs
        WHERE job_id = $1
        ORDER BY line_number ASC NULLS LAST, created_at ASC, id ASC`,
-      [jobId]
+      [jobId],
     );
 
     return result.rows as JobLog[];
@@ -200,7 +230,7 @@ export class LogStreamService {
 
   async getJobLogText(jobId: string): Promise<string> {
     const logs = await this.getJobLogs(jobId);
-    return logs.map((log) => log.message).join('\n');
+    return logs.map((log) => log.message).join("\n");
   }
 }
 
