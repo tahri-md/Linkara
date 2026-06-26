@@ -4,6 +4,7 @@ import { Webhook } from "../../models/Webhooks.js";
 const webhookService = new WebhooksService();
 
 interface CreateWebhookInput {
+  orgId: string;
   workflowId: string;
   provider: "github" | "gitlab" | "bitbucket";
   events: string[];
@@ -16,34 +17,41 @@ interface HandleWebhookEventInput {
   eventType: string;
 }
 
+interface Context {
+  userId?: string;
+}
+
 export const webhookResolvers = {
   Query: {
     webhooks: async (
       _parent: any,
-      _args: any,
-      context: { orgId: string }
+      args: { orgId: string },
+      context: Context
     ): Promise<Webhook[]> => {
-      if (!context.orgId) {
-        throw new Error("Authentication required: Organization ID not found in context");
+      if (!context.userId) {
+        throw new Error("Authentication required");
       }
-
-      return await webhookService.listWebhooks(context.orgId);
+      if (!args.orgId) {
+        throw new Error("orgId argument is required");
+      }
+      return await webhookService.listWebhooks(args.orgId);
     },
 
     webhook: async (
       _parent: any,
-      args: { id: string },
-      context: { orgId: string }
+      args: { id: string; orgId: string },
+      context: Context
     ): Promise<Webhook | null> => {
-      if (!context.orgId) {
-        throw new Error("Authentication required: Organization ID not found in context");
+      if (!context.userId) {
+        throw new Error("Authentication required");
       }
-
+      if (!args.orgId) {
+        throw new Error("orgId argument is required");
+      }
       if (!args.id) {
         throw new Error("Webhook ID is required");
       }
-
-      const webhooks = await webhookService.listWebhooks(context.orgId);
+      const webhooks = await webhookService.listWebhooks(args.orgId);
       return webhooks.find((w) => w.id === args.id) || null;
     },
   },
@@ -52,28 +60,23 @@ export const webhookResolvers = {
     createWebhook: async (
       _parent: any,
       args: { input: CreateWebhookInput },
-      context: { orgId: string }
+      context: Context
     ): Promise<{ webhook: Webhook; secret: string }> => {
-      if (!context.orgId) {
-        throw new Error("Authentication required: Organization ID not found in context");
+      if (!context.userId) {
+        throw new Error("Authentication required");
       }
 
-      const { workflowId, provider, events } = args.input;
+      const { orgId, workflowId, provider, events } = args.input;
 
-      if (!workflowId || !provider || !events || events.length === 0) {
-        throw new Error("Missing required fields: workflowId, provider, and events are required");
+      if (!orgId || !workflowId || !provider || !events || events.length === 0) {
+        throw new Error("Missing required fields: orgId, workflowId, provider, and events are required");
       }
 
-      const webhook = await webhookService.createWebhook(
-        context.orgId,
-        workflowId,
-        provider,
-        events
-      );
+      const webhook = await webhookService.createWebhook(orgId, workflowId, provider, events);
 
       return {
         webhook,
-        secret: webhook.secret,
+        secret: (webhook as any).secret,
       };
     },
 
@@ -81,17 +84,11 @@ export const webhookResolvers = {
       _parent: any,
       args: { input: HandleWebhookEventInput },
       _context: any
-    ): Promise<{
-      success: boolean;
-      pipelineRunId: string;
-      message: string;
-    }> => {
+    ): Promise<{ success: boolean; pipelineRunId: string; message: string }> => {
       const { webhookId, payload, signature, eventType } = args.input;
 
       if (!webhookId || !payload || !signature || !eventType) {
-        throw new Error(
-          "Missing required fields: webhookId, payload, signature, and eventType are required"
-        );
+        throw new Error("Missing required fields: webhookId, payload, signature, and eventType are required");
       }
 
       try {
@@ -101,7 +98,6 @@ export const webhookResolvers = {
           signature,
           eventType
         );
-
         return {
           success: true,
           pipelineRunId: pipelineRun.id,
@@ -110,30 +106,24 @@ export const webhookResolvers = {
       } catch (error) {
         console.error(`[WebhookResolvers] Error processing webhook event:`, error);
         throw new Error(
-          `Failed to process webhook event: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
+          `Failed to process webhook event: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     },
 
     deleteWebhook: async (
       _parent: any,
-      args: { id: string },
-      context: { orgId: string }
-    ): Promise<{
-      success: boolean;
-      message: string;
-    }> => {
-      if (!context.orgId) {
-        throw new Error("Authentication required: Organization ID not found in context");
+      args: { id: string; orgId: string },
+      context: Context
+    ): Promise<{ success: boolean; message: string }> => {
+      if (!context.userId) {
+        throw new Error("Authentication required");
+      }
+      if (!args.orgId || !args.id) {
+        throw new Error("orgId and webhook id are required");
       }
 
-      if (!args.id) {
-        throw new Error("Webhook ID is required");
-      }
-
-      const webhooks = await webhookService.listWebhooks(context.orgId);
+      const webhooks = await webhookService.listWebhooks(args.orgId);
       const webhookExists = webhooks.some((w) => w.id === args.id);
 
       if (!webhookExists) {
@@ -143,10 +133,7 @@ export const webhookResolvers = {
       const success = await webhookService.deleteWebhook(args.id);
 
       if (success) {
-        return {
-          success: true,
-          message: "Webhook deleted successfully",
-        };
+        return { success: true, message: "Webhook deleted successfully" };
       } else {
         throw new Error("Failed to delete webhook");
       }
@@ -154,18 +141,17 @@ export const webhookResolvers = {
 
     updateWebhookEvents: async (
       _parent: any,
-      args: { id: string; events: string[] },
-      context: { orgId: string }
+      args: { id: string; orgId: string; events: string[] },
+      context: Context
     ): Promise<Webhook> => {
-      if (!context.orgId) {
-        throw new Error("Authentication required: Organization ID not found in context");
+      if (!context.userId) {
+        throw new Error("Authentication required");
+      }
+      if (!args.id || !args.orgId || !args.events || args.events.length === 0) {
+        throw new Error("Webhook ID, orgId, and events array are required");
       }
 
-      if (!args.id || !args.events || args.events.length === 0) {
-        throw new Error("Webhook ID and events array are required");
-      }
-
-      const webhooks = await webhookService.listWebhooks(context.orgId);
+      const webhooks = await webhookService.listWebhooks(args.orgId);
       const webhook = webhooks.find((w) => w.id === args.id);
 
       if (!webhook) {
@@ -177,14 +163,10 @@ export const webhookResolvers = {
   },
 
   Webhook: {
-    url: (webhook: Webhook) => {
-      return webhook.url;
-    },
+    url: (webhook: Webhook) => webhook.url,
 
     events: (webhook: Webhook) => {
-      if (Array.isArray(webhook.events)) {
-        return webhook.events;
-      }
+      if (Array.isArray(webhook.events)) return webhook.events;
       try {
         return JSON.parse(webhook.events as any);
       } catch {
@@ -192,17 +174,16 @@ export const webhookResolvers = {
       }
     },
 
-   createdAt: (webhook:any) => {
-    return webhook.created_at instanceof Date
-      ? webhook.created_at.toISOString()
-      : new Date(webhook.created_at).toISOString();
-  },
+    createdAt: (webhook: any) =>
+      webhook.created_at instanceof Date
+        ? webhook.created_at.toISOString()
+        : new Date(webhook.created_at).toISOString(),
 
-  updatedAt: (webhook:any) => {
-    if (!webhook.updated_at) return null;
-    return webhook.updated_at instanceof Date
-      ? webhook.updated_at.toISOString()
-      : new Date(webhook.updated_at).toISOString();
-  },
+    updatedAt: (webhook: any) => {
+      if (!webhook.updated_at) return null;
+      return webhook.updated_at instanceof Date
+        ? webhook.updated_at.toISOString()
+        : new Date(webhook.updated_at).toISOString();
+    },
   },
 };
