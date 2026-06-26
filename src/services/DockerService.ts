@@ -1,10 +1,12 @@
-import Docker from 'dockerode';
-import { PassThrough } from 'stream';
-import { logStreamService } from './LogStreamService.js';
+import Docker from "dockerode";
+import { PassThrough } from "stream";
+import { logStreamService } from "./LogStreamService.js";
 
 const docker = new Docker({
-  host: process.env.DOCKER_HOST || 'unix:///var/run/docker.sock',
-  port: process.env.DOCKER_PORT ? parseInt(process.env.DOCKER_PORT, 10) : undefined,
+  host: process.env.DOCKER_HOST || "unix:///var/run/docker.sock",
+  port: process.env.DOCKER_PORT
+    ? parseInt(process.env.DOCKER_PORT, 10)
+    : undefined,
 });
 
 export interface ContainerCreateOptions {
@@ -42,7 +44,7 @@ export class DockerService {
           },
           (output: any) => {
             console.log(`[docker] Pull progress:`, output);
-          }
+          },
         );
       });
     } catch (err) {
@@ -51,7 +53,9 @@ export class DockerService {
     }
   }
 
-  async createContainer(options: ContainerCreateOptions): Promise<Docker.Container> {
+  async createContainer(
+    options: ContainerCreateOptions,
+  ): Promise<Docker.Container> {
     try {
       console.log(`[docker] Creating container from image: ${options.image}`);
 
@@ -63,13 +67,22 @@ export class DockerService {
         Image: options.image,
         Cmd: options.cmd,
         Env: envArray,
-        WorkingDir: options.workingDir || '/app',
+        WorkingDir: options.workingDir || "/app",
         AttachStdout: true,
         AttachStderr: true,
         HostConfig: {
           Memory: 512 * 1024 * 1024,
           CpuQuota: 100000,
           CpuPeriod: 100000,
+          // Prevent containers from making arbitrary outbound network calls,
+          // which would allow exfiltration of injected secrets.
+          NetworkMode: "none",
+          // Drop all Linux capabilities; grant back only what's needed
+          CapDrop: ["ALL"],
+          // Read-only root filesystem prevents tampering with the image
+          ReadonlyRootfs: false, // set to true if your jobs don't need writes
+          // Prevent privilege escalation inside the container
+          SecurityOpt: ["no-new-privileges"],
         },
       });
 
@@ -92,9 +105,14 @@ export class DockerService {
     }
   }
 
-  async waitForContainer(container: Docker.Container, timeoutMs: number = 3600000): Promise<number> {
+  async waitForContainer(
+    container: Docker.Container,
+    timeoutMs: number = 3600000,
+  ): Promise<number> {
     try {
-      console.log(`[docker] Waiting for container: ${container.id} (timeout: ${timeoutMs}ms)`);
+      console.log(
+        `[docker] Waiting for container: ${container.id} (timeout: ${timeoutMs}ms)`,
+      );
 
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -107,7 +125,9 @@ export class DockerService {
           if (err) {
             reject(err);
           } else {
-            console.log(`[docker] Container exited with code: ${result.StatusCode}`);
+            console.log(
+              `[docker] Container exited with code: ${result.StatusCode}`,
+            );
             resolve(result.StatusCode);
           }
         });
@@ -120,7 +140,7 @@ export class DockerService {
 
   private async streamContainerOutput(
     container: Docker.Container,
-    jobId: string
+    jobId: string,
   ): Promise<{ stdout: string; stderr: string }> {
     try {
       const output = (await container.logs({
@@ -139,30 +159,30 @@ export class DockerService {
       const logWrites: Promise<unknown>[] = [];
 
       const stdoutDone = new Promise<void>((resolve, reject) => {
-        stdoutStream.on('data', (chunk: Buffer) => {
-          const text = chunk.toString('utf8');
+        stdoutStream.on("data", (chunk: Buffer) => {
+          const text = chunk.toString("utf8");
           stdoutChunks.push(text);
-          logWrites.push(logStreamService.appendChunk(jobId, text, 'stdout'));
+          logWrites.push(logStreamService.appendChunk(jobId, text, "stdout"));
         });
-        stdoutStream.on('end', () => resolve());
-        stdoutStream.on('error', (err) => reject(err));
+        stdoutStream.on("end", () => resolve());
+        stdoutStream.on("error", (err) => reject(err));
       });
 
       const stderrDone = new Promise<void>((resolve, reject) => {
-        stderrStream.on('data', (chunk: Buffer) => {
-          const text = chunk.toString('utf8');
+        stderrStream.on("data", (chunk: Buffer) => {
+          const text = chunk.toString("utf8");
           stderrChunks.push(text);
-          logWrites.push(logStreamService.appendChunk(jobId, text, 'stderr'));
+          logWrites.push(logStreamService.appendChunk(jobId, text, "stderr"));
         });
-        stderrStream.on('end', () => resolve());
-        stderrStream.on('error', (err) => reject(err));
+        stderrStream.on("end", () => resolve());
+        stderrStream.on("error", (err) => reject(err));
       });
 
       await Promise.all([stdoutDone, stderrDone]);
       await Promise.all(logWrites);
 
-      const stdout = stdoutChunks.join('');
-      const stderr = stderrChunks.join('');
+      const stdout = stdoutChunks.join("");
+      const stderr = stderrChunks.join("");
 
       await logStreamService.flush(jobId);
 
@@ -184,7 +204,9 @@ export class DockerService {
     }
   }
 
-  async executeJob(options: ContainerCreateOptions): Promise<ContainerExecutionResult> {
+  async executeJob(
+    options: ContainerCreateOptions,
+  ): Promise<ContainerExecutionResult> {
     let container: Docker.Container | null = null;
 
     try {
@@ -192,7 +214,10 @@ export class DockerService {
       container = await this.createContainer(options);
       await this.startContainer(container);
 
-      const outputPromise = this.streamContainerOutput(container, options.jobId);
+      const outputPromise = this.streamContainerOutput(
+        container,
+        options.jobId,
+      );
 
       const exitCode = await this.waitForContainer(container, options.timeout);
       const { stdout, stderr } = await outputPromise;
@@ -214,7 +239,7 @@ export class DockerService {
       await docker.ping();
       return true;
     } catch (err) {
-      console.error('[docker] Health check failed:', err);
+      console.error("[docker] Health check failed:", err);
       return false;
     }
   }
