@@ -117,8 +117,8 @@ export const pipelineResolvers: any = {
       }
 
       let whereClause = 'WHERE pr.org_id = $1';
-      let countParams: any[] = [args.orgId];
-      let dataParams: any[] = [args.orgId];
+      const countParams: any[] = [args.orgId];
+      const dataParams: any[] = [args.orgId];
 
       if (args.workflowId) {
         whereClause += ' AND pr.workflow_id = $2';
@@ -147,7 +147,18 @@ export const pipelineResolvers: any = {
         dataParams
       );
 
-      const pipelineRuns = await Promise.all(dataResult.rows.map((row) => formatPipelineRun(row)));
+      const pipelineRuns: PipelineRunResponse[] = await Promise.all(
+        dataResult.rows.map(async (row) => {
+          const pr = await formatPipelineRun(row);
+          const jobsResult = await query(
+            `SELECT id, pipeline_run_id, workflow_job_id, job_name, status, docker_image,
+                    docker_container_id, started_at, completed_at, duration_seconds, exit_code, created_at
+             FROM jobs WHERE pipeline_run_id = $1 ORDER BY created_at ASC`,
+            [pr.id]
+          );
+          return { ...pr, jobs: jobsResult.rows as Job[] };
+        })
+      );
 
       return {
         data: pipelineRuns,
