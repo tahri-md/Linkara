@@ -1,46 +1,55 @@
-import { query } from '../db/connection.js';
-import { Organization, OrgMember, OrgRole, OrgMemberWithUser } from '../models/Organization.js';
+import { query } from "../db/connection.js";
+import {
+  Organization,
+  OrgMember,
+  OrgRole,
+  OrgMemberWithUser,
+} from "../models/Organization.js";
 
 export class OrganizationServiceImpl {
   async createOrganization(
     userId: string,
     name: string,
     slug: string,
-    avatar_url?: string
+    avatar_url?: string,
   ): Promise<Organization> {
     const result = await query(
       `INSERT INTO organizations (name, slug, owner_id, avatar_url, created_at)
        VALUES ($1, $2, $3, $4, NOW())
        RETURNING id, name, description, slug, owner_id, avatar_url, created_at`,
-      [name, slug, userId, avatar_url || null]
+      [name, slug, userId, avatar_url || null],
     );
 
     const orgId = result.rows[0].id;
 
     await query(
-      `INSERT INTO org_members (organization_id, user_id, role, joined_at)
+      `INSERT INTO org_members (org_id, user_id, role, joined_at)
        VALUES ($1, $2, $3, NOW())`,
-      [orgId, userId, 'OWNER']
+      [orgId, userId, "OWNER"],
     );
 
     return result.rows[0];
   }
 
-  async addOrgMember(orgId: string, userId: string, role: OrgRole): Promise<OrgMember> {
+  async addOrgMember(
+    orgId: string,
+    userId: string,
+    role: OrgRole,
+  ): Promise<OrgMember> {
     const existingMember = await query(
-      `SELECT id FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, userId]
+      `SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId],
     );
 
     if (existingMember.rows.length > 0) {
-      throw new Error('User is already a member of this organization');
+      throw new Error("User is already a member of this organization");
     }
 
     const result = await query(
-      `INSERT INTO org_members (organization_id, user_id, role, joined_at)
+      `INSERT INTO org_members (org_id, user_id, role, joined_at)
        VALUES ($1, $2, $3, NOW())
-       RETURNING id, organization_id, user_id, role, joined_at`,
-      [orgId, userId, role]
+       RETURNING id, org_id, user_id, role, joined_at`,
+      [orgId, userId, role],
     );
 
     return result.rows[0];
@@ -48,79 +57,91 @@ export class OrganizationServiceImpl {
 
   async removeMember(orgId: string, userId: string): Promise<void> {
     const ownerCount = await query(
-      `SELECT COUNT(*) FROM org_members WHERE organization_id = $1 AND role = 'OWNER'`,
-      [orgId]
+      `SELECT COUNT(*) FROM org_members WHERE org_id = $1 AND role = 'OWNER'`,
+      [orgId],
     );
 
     const isRemovingOwner = await query(
-      `SELECT role FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, userId]
+      `SELECT role FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId],
     );
 
     if (
-      isRemovingOwner.rows[0]?.role === 'OWNER' &&
+      isRemovingOwner.rows[0]?.role === "OWNER" &&
       parseInt(ownerCount.rows[0].count) === 1
     ) {
-      throw new Error('Cannot remove the only owner from an organization');
+      throw new Error("Cannot remove the only owner from an organization");
     }
 
-    await query(
-      `DELETE FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, userId]
-    );
+    await query(`DELETE FROM org_members WHERE org_id = $1 AND user_id = $2`, [
+      orgId,
+      userId,
+    ]);
   }
 
-  async updateMemberRole(orgId: string, userId: string, role: OrgRole): Promise<OrgMember> {
+  async updateMemberRole(
+    orgId: string,
+    userId: string,
+    role: OrgRole,
+  ): Promise<OrgMember> {
     const result = await query(
       `UPDATE org_members SET role = $1
-       WHERE organization_id = $2 AND user_id = $3
-       RETURNING id, organization_id, user_id, role, joined_at`,
-      [role, orgId, userId]
+       WHERE org_id = $2 AND user_id = $3
+       RETURNING id, org_id, user_id, role, joined_at`,
+      [role, orgId, userId],
     );
 
     if (result.rows.length === 0) {
-      throw new Error('Member not found');
+      throw new Error("Member not found");
     }
 
     return result.rows[0];
   }
 
-  async transferOwnership(orgId: string, fromUserId: string, toUserId: string): Promise<void> {
+  async transferOwnership(
+    orgId: string,
+    fromUserId: string,
+    toUserId: string,
+  ): Promise<void> {
     const toUserRole = await query(
-      `SELECT role FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, toUserId]
+      `SELECT role FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [orgId, toUserId],
     );
 
     if (toUserRole.rows.length === 0) {
-      throw new Error('User is not a member of this organization');
+      throw new Error("User is not a member of this organization");
     }
 
-    await query('BEGIN', []);
+    await query("BEGIN", []);
 
     try {
       await query(
         `UPDATE org_members SET role = 'ADMIN'
-         WHERE organization_id = $1 AND user_id = $2`,
-        [orgId, fromUserId]
+         WHERE org_id = $1 AND user_id = $2`,
+        [orgId, fromUserId],
       );
 
       await query(
         `UPDATE org_members SET role = 'OWNER'
-         WHERE organization_id = $1 AND user_id = $2`,
-        [orgId, toUserId]
+         WHERE org_id = $1 AND user_id = $2`,
+        [orgId, toUserId],
       );
 
-      await query('COMMIT', []);
+      await query("COMMIT", []);
     } catch (error) {
-      await query('ROLLBACK', []);
+      await query("ROLLBACK", []);
       throw error;
     }
   }
 
-  async validateUserPermissions(orgId: string, userId: string, requiredRole: OrgRole): Promise<boolean> {
+  async validateUserPermissions(
+    orgId: string,
+    userId: string,
+    requiredRole: OrgRole,
+  ): Promise<boolean> {
     const result = await query(
-      `SELECT role FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, userId]
+      `SELECT role FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId],
     );
 
     if (result.rows.length === 0) {
@@ -140,19 +161,19 @@ export class OrganizationServiceImpl {
 
   async getOrgMembers(orgId: string): Promise<OrgMemberWithUser[]> {
     const result = await query(
-      `SELECT om.id, om.organization_id, om.user_id, om.role, om.joined_at,
-              u.id as user_id, u.email, u.name, u.avatar_url, u.password_hash,
-              u.github_id, u.github_token, u.created_at, u.updated_at
+      `SELECT om.id, om.org_id, om.user_id, om.role, om.joined_at,
+              u.id as user_id, u.email, u.name, u.avatar_url,
+              u.created_at, u.updated_at
        FROM org_members om
        JOIN users u ON om.user_id = u.id
-       WHERE om.organization_id = $1
+       WHERE om.org_id = $1
        ORDER BY om.joined_at ASC`,
-      [orgId]
+      [orgId],
     );
 
     return result.rows.map((row) => ({
       id: row.id,
-      organization_id: row.organization_id,
+      org_id: row.org_id,
       user_id: row.user_id,
       role: row.role,
       joined_at: row.joined_at,
@@ -161,9 +182,6 @@ export class OrganizationServiceImpl {
         email: row.email,
         name: row.name,
         avatar_url: row.avatar_url,
-        password_hash: row.password_hash,
-        github_id: row.github_id,
-        github_token: row.github_token,
         created_at: row.created_at,
         updated_at: row.updated_at,
       },
@@ -174,7 +192,7 @@ export class OrganizationServiceImpl {
     const result = await query(
       `SELECT id, name, description, slug, owner_id, avatar_url, created_at
        FROM organizations WHERE id = $1`,
-      [orgId]
+      [orgId],
     );
 
     return result.rows[0] || null;
@@ -184,10 +202,10 @@ export class OrganizationServiceImpl {
     const result = await query(
       `SELECT DISTINCT o.id, o.name, o.description, o.slug, o.owner_id, o.avatar_url, o.created_at
        FROM organizations o
-       JOIN org_members om ON o.id = om.organization_id
+       JOIN org_members om ON o.id = om.org_id
        WHERE om.user_id = $1
        ORDER BY o.created_at DESC`,
-      [userId]
+      [userId],
     );
 
     return result.rows;
@@ -197,7 +215,7 @@ export class OrganizationServiceImpl {
     const result = await query(
       `SELECT id, name, description, slug, owner_id, avatar_url, created_at
        FROM organizations WHERE slug = $1`,
-      [slug]
+      [slug],
     );
 
     return result.rows;
@@ -205,7 +223,7 @@ export class OrganizationServiceImpl {
 
   async updateOrganization(
     orgId: string,
-    updates: Partial<Organization>
+    updates: Partial<Organization>,
   ): Promise<Organization> {
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -231,43 +249,46 @@ export class OrganizationServiceImpl {
     values.push(orgId);
 
     const result = await query(
-      `UPDATE organizations SET ${fields.join(', ')}
+      `UPDATE organizations SET ${fields.join(", ")}
        WHERE id = $${paramCount}
        RETURNING id, name, description, slug, owner_id, avatar_url, created_at`,
-      values
+      values,
     );
 
     return result.rows[0];
   }
 
   async deleteOrganization(orgId: string): Promise<void> {
-    await query('BEGIN', []);
+    await query("BEGIN", []);
 
     try {
-      await query(`DELETE FROM org_members WHERE organization_id = $1`, [orgId]);
+      await query(`DELETE FROM org_members WHERE org_id = $1`, [orgId]);
       await query(`DELETE FROM organizations WHERE id = $1`, [orgId]);
-      await query('COMMIT', []);
+      await query("COMMIT", []);
     } catch (error) {
-      await query('ROLLBACK', []);
+      await query("ROLLBACK", []);
       throw error;
     }
   }
 
-  async getMembersByRole(orgId: string, role: OrgRole): Promise<OrgMemberWithUser[]> {
+  async getMembersByRole(
+    orgId: string,
+    role: OrgRole,
+  ): Promise<OrgMemberWithUser[]> {
     const result = await query(
-      `SELECT om.id, om.organization_id, om.user_id, om.role, om.joined_at,
-              u.id as user_id, u.email, u.name, u.avatar_url, u.password_hash,
-              u.github_id, u.github_token, u.created_at, u.updated_at
+      `SELECT om.id, om.org_id, om.user_id, om.role, om.joined_at,
+              u.id as user_id, u.email, u.name, u.avatar_url,
+              u.created_at, u.updated_at
        FROM org_members om
        JOIN users u ON om.user_id = u.id
-       WHERE om.organization_id = $1 AND om.role = $2
+       WHERE om.org_id = $1 AND om.role = $2
        ORDER BY om.joined_at ASC`,
-      [orgId, role]
+      [orgId, role],
     );
 
     return result.rows.map((row) => ({
       id: row.id,
-      organization_id: row.organization_id,
+      org_id: row.org_id,
       user_id: row.user_id,
       role: row.role,
       joined_at: row.joined_at,
@@ -276,9 +297,6 @@ export class OrganizationServiceImpl {
         email: row.email,
         name: row.name,
         avatar_url: row.avatar_url,
-        password_hash: row.password_hash,
-        github_id: row.github_id,
-        github_token: row.github_token,
         created_at: row.created_at,
         updated_at: row.updated_at,
       },
@@ -294,9 +312,9 @@ export class OrganizationServiceImpl {
   }> {
     const result = await query(
       `SELECT role, COUNT(*) as count FROM org_members
-       WHERE organization_id = $1
+       WHERE org_id = $1
        GROUP BY role`,
-      [orgId]
+      [orgId],
     );
 
     const stats = {
@@ -318,8 +336,8 @@ export class OrganizationServiceImpl {
 
   async isUserInOrganization(orgId: string, userId: string): Promise<boolean> {
     const result = await query(
-      `SELECT id FROM org_members WHERE organization_id = $1 AND user_id = $2`,
-      [orgId, userId]
+      `SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [orgId, userId],
     );
 
     return result.rows.length > 0;

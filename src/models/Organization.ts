@@ -1,6 +1,6 @@
-import { User } from './User.js';
+import { UserPublic } from "./User.js";
 
-export type OrgRole = 'ADMIN' | 'OWNER' | 'EDITOR' | 'VIEWER';
+export type OrgRole = "ADMIN" | "OWNER" | "EDITOR" | "VIEWER";
 
 export interface Organization {
   id: string;
@@ -14,14 +14,14 @@ export interface Organization {
 
 export interface OrgMember {
   id: string;
-  organization_id: string;
+  org_id: string;
   user_id: string;
   role: OrgRole;
   joined_at: Date;
 }
 
 export interface OrgMemberWithUser extends OrgMember {
-  user: User;
+  user: UserPublic;
 }
 
 export interface OrganizationInput {
