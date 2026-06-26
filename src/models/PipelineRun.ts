@@ -1,4 +1,4 @@
-import { Job } from "./Job";
+import { Job } from "./Job.js";
 
 export interface PipelineRun {
   id: string;
@@ -18,21 +18,17 @@ export interface PipelineRun {
   created_at: Date;
 }
 
-export type TriggerType =
-  | 'manual'
-  | 'scheduled'
-  | 'webhook'
-  | 'api';
+export type TriggerType = "manual" | "scheduled" | "webhook" | "api";
 
 export type PipelineRunStatus =
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
-
+  | "pending"
+  | "running"
+  | "success"
+  | "failed"
+  | "cancelled";
 
 export interface TriggerPipelineRunInput {
+  workflowId: string;
   trigger_type: TriggerType;
   trigger_data?: Record<string, unknown>;
 }
