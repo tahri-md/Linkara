@@ -8,8 +8,13 @@ import { PipelineRun } from "../models/PipelineRun.js";
 const SERVICE_NAME = "WebhooksService";
 
 export function generateWebhookSecret(): string {
-  const secret = crypto.randomBytes(32).toString("hex");
-  return secret;
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function getEncryptionKey(): string {
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) throw new Error("ENCRYPTION_KEY environment variable is not set");
+  return key;
 }
 
 export class WebhooksService {
@@ -23,15 +28,26 @@ export class WebhooksService {
         .digest("hex");
 
       const expectedSignature = `sha256=${hmac}`;
-      const isValid = expectedSignature === signature;
+
+      // Use constant-time comparison to prevent timing attacks
+      const expectedBuf = Buffer.from(expectedSignature);
+      const actualBuf = Buffer.from(signature);
+      if (expectedBuf.length !== actualBuf.length) {
+        console.warn(`[${SERVICE_NAME}] Webhook signature length mismatch`);
+        return false;
+      }
+      const isValid = crypto.timingSafeEqual(expectedBuf, actualBuf);
 
       if (!isValid) {
-        console.warn(`[${SERVICE_NAME}] Webhook signature verification failed - payload signature mismatch`);
+        console.warn(`[${SERVICE_NAME}] Webhook signature verification failed`);
       }
 
       return isValid;
     } catch (error) {
-      console.error(`[${SERVICE_NAME}] Error during signature verification:`, error);
+      console.error(
+        `[${SERVICE_NAME}] Error during signature verification:`,
+        error,
+      );
       return false;
     }
   }
@@ -40,10 +56,11 @@ export class WebhooksService {
     orgId: string,
     workflowId: string,
     provider: "github" | "gitlab" | "bitbucket",
-    events: string[]
+    events: string[],
   ): Promise<Webhook> {
     if (!orgId || !workflowId || !provider) {
-      const error = "Missing required webhook parameters: orgId, workflowId, or provider";
+      const error =
+        "Missing required webhook parameters: orgId, workflowId, or provider";
       console.error(`[${SERVICE_NAME}] Validation failed: ${error}`);
       throw new Error(error);
     }
@@ -57,16 +74,19 @@ export class WebhooksService {
     const existingResult = await query(
       `SELECT id FROM webhooks 
        WHERE org_id = $1 AND workflow_id = $2 AND provider = $3`,
-      [orgId, workflowId, provider]
+      [orgId, workflowId, provider],
     );
 
     if (existingResult.rows.length > 0) {
       const error = `Webhook already exists for this workflow and provider`;
-      console.warn(`[${SERVICE_NAME}] Webhook creation skipped: ${error} (webhook_id=${existingResult.rows[0].id})`);
+      console.warn(
+        `[${SERVICE_NAME}] Webhook creation skipped: ${error} (webhook_id=${existingResult.rows[0].id})`,
+      );
       throw new Error(error);
     }
 
-    const secret = generateWebhookSecret();
+    const rawSecret = generateWebhookSecret();
+    const encryptedSecret = encryptSecret(rawSecret, getEncryptionKey());
     const id = crypto.randomUUID();
     const url = `${process.env.API_BASE_URL}/webhooks/${id}`;
 
@@ -75,11 +95,20 @@ export class WebhooksService {
         `INSERT INTO webhooks (id, org_id, workflow_id, provider, url, secret, events, active, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW())
          RETURNING *`,
-        [id, orgId, workflowId, provider, url, secret, JSON.stringify(events)]
+        [
+          id,
+          orgId,
+          workflowId,
+          provider,
+          url,
+          encryptedSecret,
+          JSON.stringify(events),
+        ],
       );
 
       const webhook = result.rows[0];
-      return webhook;
+      // Return with the plaintext secret so the caller can show it once to the user
+      return { ...webhook, secret: rawSecret };
     } catch (error) {
       console.error(`[${SERVICE_NAME}] Error creating webhook:`, error);
       throw error;
@@ -90,7 +119,7 @@ export class WebhooksService {
     webhookId: string,
     payload: any,
     signature: string,
-    eventType: string
+    eventType: string,
   ): Promise<PipelineRun> {
     if (!webhookId) {
       const error = "Webhook ID is required";
@@ -101,7 +130,7 @@ export class WebhooksService {
     const webhookResult = await query(
       `SELECT id, org_id, workflow_id, provider, secret, events, active 
        FROM webhooks WHERE id = $1`,
-      [webhookId]
+      [webhookId],
     );
 
     if (webhookResult.rows.length === 0) {
@@ -118,7 +147,9 @@ export class WebhooksService {
       throw new Error(error);
     }
 
-    const isValid = this.verifySignature(webhook.secret, payload, signature);
+    // Decrypt the stored secret before verifying the signature
+    const plaintextSecret = decryptSecret(webhook.secret, getEncryptionKey());
+    const isValid = this.verifySignature(plaintextSecret, payload, signature);
     if (!isValid) {
       const error = `Webhook signature verification failed`;
       console.error(`[${SERVICE_NAME}] ${error}: id=${webhookId}`);
@@ -131,7 +162,9 @@ export class WebhooksService {
 
     if (!subscribedEvents.includes(eventType)) {
       const error = `Event type not subscribed: ${eventType}`;
-      console.warn(`[${SERVICE_NAME}] Event type not subscribed: id=${webhookId}, eventType=${eventType}`);
+      console.warn(
+        `[${SERVICE_NAME}] Event type not subscribed: id=${webhookId}, eventType=${eventType}`,
+      );
       throw new Error(error);
     }
 
@@ -142,20 +175,26 @@ export class WebhooksService {
       commits: payload.commits || [],
       sender: payload.sender?.login || "unknown",
     };
-    const workflow_re = await query("SELECT * FROM workflow where id=$1", [webhook.workflow_id]);
-    if (workflow_re.rows.length == 0) {
-      const error = `Worklfow not found`;
+    const workflow_re = await query("SELECT * FROM workflows WHERE id = $1", [
+      webhook.workflow_id,
+    ]);
+    if (workflow_re.rows.length === 0) {
+      const error = `Workflow not found`;
       throw new Error(error);
     }
-    const workflow = workflow_re.rows[0]
+    const workflow = workflow_re.rows[0];
 
-    const pipelineRun = await this.pipelineService.trigger_pipelineRun(workflow);
+    const pipelineRun = await this.pipelineService.trigger_pipelineRun(
+      workflow,
+      "webhook",
+      data,
+    );
 
     try {
       await query(
         `INSERT INTO webhook_events (id, webhook_id, event_type, payload, delivered_at, status)
          VALUES ($1, $2, $3, $4, NOW(), 'success')`,
-        [crypto.randomUUID(), webhook.id, eventType, JSON.stringify(payload)]
+        [crypto.randomUUID(), webhook.id, eventType, JSON.stringify(payload)],
       );
     } catch (logError) {
       console.error(`[${SERVICE_NAME}] Error logging webhook event:`, logError);
@@ -177,7 +216,7 @@ export class WebhooksService {
          FROM webhooks
          WHERE org_id = $1
          ORDER BY created_at DESC`,
-        [orgId]
+        [orgId],
       );
 
       const webhooks = result.rows.map((row) => ({
@@ -212,13 +251,15 @@ export class WebhooksService {
         `UPDATE webhooks
          SET active = false, updated_at = NOW()
          WHERE id = $1`,
-        [webhookId]
+        [webhookId],
       );
 
       const success = (result.rowCount ?? 0) > 0;
 
       if (!success) {
-        console.warn(`[${SERVICE_NAME}] Webhook not found for deletion: id=${webhookId}`);
+        console.warn(
+          `[${SERVICE_NAME}] Webhook not found for deletion: id=${webhookId}`,
+        );
       }
 
       return success;
