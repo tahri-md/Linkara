@@ -60,12 +60,33 @@ export const rbacResolvers = {
       { roleId, input }: { roleId: string; input: { permissions: Permission[] } },
       context: Context
     ) => {
-      // Get role to check organization and if it's predefined
-      const roles = await rbacService.listRoles(context.userId!); // This won't work, need to fix
-      // For now, we'll validate after getting the role
-
       if (!input.permissions || input.permissions.length === 0) {
         throw new Error('At least one permission is required');
+      }
+
+      // Fetch the role to confirm it exists and get its orgId for the permission check
+      const roleResult = await (await import('../../db/connection.js')).query(
+        'SELECT id, org_id, is_predefined FROM roles WHERE id = $1',
+        [roleId]
+      );
+
+      if (roleResult.rows.length === 0) {
+        throw new Error('Role not found');
+      }
+
+      const role = roleResult.rows[0];
+
+      if (role.is_predefined) {
+        throw new Error('Cannot modify predefined roles');
+      }
+
+      const hasPermission = await rbacService.checkPermission(
+        context.userId!,
+        role.org_id,
+        'org:update' as Permission
+      );
+      if (!hasPermission) {
+        throw new Error('Unauthorized: No permission to update role permissions');
       }
 
       return rbacService.updateRolePermissions(roleId, input.permissions);
