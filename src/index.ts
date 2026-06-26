@@ -6,15 +6,37 @@ import { authMiddleware } from './middleware/auth.js';
 import { testConnection } from './db/connection.js';
 import { initializeQueueInfrastructure, closeQueueInfrastructure } from './queue/queues.js';
 import { testRedisConnection, closeRedisConnection } from './queue/redis.js';
-
+import { createJobExecutionWorker } from './queue/worker.js';
+import type { Worker } from 'bullmq';
+import cors from 'cors';
 const PORT = process.env.PORT || 4000;
+
+// Fail fast if required env vars are missing
+const REQUIRED_ENV = ['JWT_SECRET', 'ENCRYPTION_KEY'];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`Fatal: required environment variable ${key} is not set`);
+    process.exit(1);
+  }
+}
+
+let jobWorker: Worker | null = null;
 
 async function startServer() {
   const app = express();
 
   await initializeQueueInfrastructure();
 
+  // Start the job execution worker
+  jobWorker = createJobExecutionWorker();
+
   app.use(express.json());
+  app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'apollo-require-preflight', 'x-apollo-operation-name'],
+}));
   app.use(authMiddleware());
 
   const apolloServer = createApolloServer(typeDefs, resolvers);
@@ -45,7 +67,6 @@ async function startServer() {
     } else {
       console.warn('Warning: Database connection failed');
     }
-
     if (redisConnected) {
       console.log('Redis connected');
     } else {
@@ -57,6 +78,9 @@ async function startServer() {
 async function shutdownGracefully(signal: string): Promise<void> {
   console.log(`Received ${signal}, shutting down gracefully...`);
   try {
+    if (jobWorker) {
+      await jobWorker.close();
+    }
     await closeQueueInfrastructure();
     await closeRedisConnection();
   } catch (err) {
@@ -65,13 +89,8 @@ async function shutdownGracefully(signal: string): Promise<void> {
   process.exit(0);
 }
 
-process.on('SIGINT', () => {
-  void shutdownGracefully('SIGINT');
-});
-
-process.on('SIGTERM', () => {
-  void shutdownGracefully('SIGTERM');
-});
+process.on('SIGINT', () => { void shutdownGracefully('SIGINT'); });
+process.on('SIGTERM', () => { void shutdownGracefully('SIGTERM'); });
 
 startServer().catch((err) => {
   console.error('Failed to start server:', err);
