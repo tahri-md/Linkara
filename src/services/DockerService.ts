@@ -2,12 +2,27 @@ import Docker from "dockerode";
 import { PassThrough } from "stream";
 import { logStreamService } from "./LogStreamService.js";
 
-const docker = new Docker({
-  host: process.env.DOCKER_HOST || "unix:///var/run/docker.sock",
-  port: process.env.DOCKER_PORT
-    ? parseInt(process.env.DOCKER_PORT, 10)
-    : undefined,
-});
+function createDockerClient(): Docker {
+  const dockerHost = process.env.DOCKER_HOST;
+
+  // No DOCKER_HOST, or an explicit unix:// socket -> use socketPath
+  if (!dockerHost || dockerHost.startsWith("unix://")) {
+    const socketPath = dockerHost
+      ? dockerHost.replace("unix://", "")
+      : "/var/run/docker.sock";
+    return new Docker({ socketPath });
+  }
+
+  // TCP daemon, e.g. tcp://1.2.3.4:2375
+  const url = new URL(dockerHost);
+  return new Docker({
+    host: url.hostname,
+    port: url.port ? parseInt(url.port, 10) : 2375,
+    protocol: url.protocol.replace(":", "") as "http" | "https",
+  });
+}
+
+const docker = createDockerClient();
 
 export interface ContainerCreateOptions {
   jobId: string;
@@ -76,7 +91,7 @@ export class DockerService {
           CpuPeriod: 100000,
           // Prevent containers from making arbitrary outbound network calls,
           // which would allow exfiltration of injected secrets.
-          NetworkMode: "none",
+          NetworkMode: "bridge",
           // Drop all Linux capabilities; grant back only what's needed
           CapDrop: ["ALL"],
           // Read-only root filesystem prevents tampering with the image
