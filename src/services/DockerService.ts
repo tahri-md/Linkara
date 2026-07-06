@@ -31,6 +31,8 @@ export interface ContainerCreateOptions {
   env?: Record<string, string>;
   workingDir?: string;
   timeout?: number;
+  repoUrl: string;
+  ref: string;
 }
 
 export interface ContainerExecutionResult {
@@ -70,6 +72,7 @@ export class DockerService {
 
   async createContainer(
     options: ContainerCreateOptions,
+    sourceVolume: string,
   ): Promise<Docker.Container> {
     try {
       console.log(`[docker] Creating container from image: ${options.image}`);
@@ -86,6 +89,7 @@ export class DockerService {
         AttachStdout: true,
         AttachStderr: true,
         HostConfig: {
+          Binds: [`${sourceVolume}:${options.workingDir || "/app"}`],
           Memory: 512 * 1024 * 1024,
           CpuQuota: 100000,
           CpuPeriod: 100000,
@@ -124,32 +128,30 @@ export class DockerService {
     container: Docker.Container,
     timeoutMs: number = 3600000,
   ): Promise<number> {
+    console.log(
+      `[docker] Waiting for container: ${container.id} (timeout: ${timeoutMs}ms)`,
+    );
+
+    let timer: NodeJS.Timeout | undefined;
+
     try {
-      console.log(
-        `[docker] Waiting for container: ${container.id} (timeout: ${timeoutMs}ms)`,
-      );
+      const result = await Promise.race([
+        container.wait() as Promise<{ StatusCode: number }>,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            container.kill().catch(console.error);
+            reject(new Error(`Container execution timeout (${timeoutMs}ms)`));
+          }, timeoutMs);
+        }),
+      ]);
 
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          container.kill().catch(console.error);
-          reject(new Error(`Container execution timeout (${timeoutMs}ms)`));
-        }, timeoutMs);
-
-        container.wait((err: any, result: any) => {
-          clearTimeout(timer);
-          if (err) {
-            reject(err);
-          } else {
-            console.log(
-              `[docker] Container exited with code: ${result.StatusCode}`,
-            );
-            resolve(result.StatusCode);
-          }
-        });
-      });
+      console.log(`[docker] Container exited with code: ${result.StatusCode}`);
+      return result.StatusCode;
     } catch (err) {
       console.error(`[docker] Wait container error:`, err);
       throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -218,25 +220,131 @@ export class DockerService {
       throw err;
     }
   }
+  async checkoutRepo(repoUrl: string, ref: string, volumeName: string): Promise<void> {
+    console.log(`[docker] Checking out ${repoUrl}@${ref} into volume ${volumeName}`);
 
+    // Defensive: a prior attempt with the same jobId may have left a populated
+    // volume behind (e.g. crash between checkout and cleanup). Wipe it first
+    // so retries always start from a clean, empty volume.
+    await this.removeVolume(volumeName);
+
+    await docker.createVolume({ Name: volumeName });
+
+    await this.pullImage("alpine/git:latest");
+
+    const cloneContainer = await docker.createContainer({
+      Image: "alpine/git:latest",
+      Cmd: ["clone", "--depth", "1", "--branch", ref, repoUrl, "/repo"],
+      HostConfig: {
+        Binds: [`${volumeName}:/repo`],
+      },
+    });
+
+    try {
+      await cloneContainer.start();
+      const waitResult: any = await cloneContainer.wait();
+      if (waitResult.StatusCode !== 0) {
+        const rawLogs = (await cloneContainer.logs({
+          stdout: true,
+          stderr: true,
+        })) as Buffer;
+        const logs = this.demuxToString(rawLogs);
+        throw new Error(
+          `git clone failed (exit ${waitResult.StatusCode}): ${logs}`,);
+      }
+    } finally {
+      await cloneContainer.remove({ force: true }).catch(console.error);
+    }
+
+    console.log(`[docker] Checkout complete: ${volumeName}`);
+  }
+  private demuxToString(buffer: Buffer): string {
+    let result = "";
+    let offset = 0;
+    while (offset + 8 <= buffer.length) {
+      const frameSize = buffer.readUInt32BE(offset + 4);
+      const start = offset + 8;
+      const end = start + frameSize;
+      result += buffer.subarray(start, end).toString("utf8");
+      offset = end;
+    }
+    return result;
+  }
+  async removeVolume(volumeName: string): Promise<void> {
+    try {
+      const volume = docker.getVolume(volumeName);
+      await volume.remove({ force: true });
+      console.log(`[docker] Volume removed: ${volumeName}`);
+    } catch (err) {
+      console.error(`[docker] Remove volume error (${volumeName}):`, err);
+    }
+  }
+  private demuxBuffer(buffer: Buffer): { stdout: string; stderr: string } {
+    let stdout = "";
+    let stderr = "";
+    let offset = 0;
+    while (offset + 8 <= buffer.length) {
+      const streamType = buffer.readUInt8(offset);
+      const frameSize = buffer.readUInt32BE(offset + 4);
+      const start = offset + 8;
+      const end = start + frameSize;
+      const text = buffer.subarray(start, end).toString("utf8");
+      if (streamType === 2) {
+        stderr += text;
+      } else {
+        stdout += text;
+      }
+      offset = end;
+    }
+    return { stdout, stderr };
+  }
+
+  private async collectLogs(
+    container: Docker.Container,
+    jobId: string,
+  ): Promise<{ stdout: string; stderr: string }> {
+    try {
+      // follow:false — the container has already exited (we only call this
+      // after waitForContainer resolves), so this is a single, finite fetch
+      // that always terminates. No more racing an indefinite follow-stream.
+      const rawLogs = (await container.logs({
+        stdout: true,
+        stderr: true,
+        follow: false,
+        timestamps: false,
+      })) as Buffer;
+
+      const { stdout, stderr } = this.demuxBuffer(rawLogs);
+
+      if (stdout) await logStreamService.appendChunk(jobId, stdout, "stdout");
+      if (stderr) await logStreamService.appendChunk(jobId, stderr, "stderr");
+      await logStreamService.flush(jobId);
+
+      return { stdout, stderr };
+    } catch (err) {
+      console.error(`[docker] Collect output error:`, err);
+      throw err;
+    }
+  }
   async executeJob(
     options: ContainerCreateOptions,
   ): Promise<ContainerExecutionResult> {
     let container: Docker.Container | null = null;
+    const sourceVolume = `linkara-src-${options.jobId}`;
 
     try {
       await this.pullImage(options.image);
-      container = await this.createContainer(options);
-      await this.startContainer(container);
+      await this.checkoutRepo(options.repoUrl, options.ref, sourceVolume);
+      container = await this.createContainer(options, sourceVolume); await this.startContainer(container);
 
-      const outputPromise = this.streamContainerOutput(
-        container,
-        options.jobId,
-      );
+      // const outputPromise = this.streamContainerOutput(
+      //   container,
+      //   options.jobId,
+      // );
 
       const exitCode = await this.waitForContainer(container, options.timeout);
-      const { stdout, stderr } = await outputPromise;
-
+      // const { stdout, stderr } = await outputPromise;
+      const { stdout, stderr } = await this.collectLogs(container, options.jobId);
       return {
         exitCode,
         stdout,
@@ -246,6 +354,7 @@ export class DockerService {
       if (container) {
         await this.removeContainer(container);
       }
+      await this.removeVolume(sourceVolume);
     }
   }
 

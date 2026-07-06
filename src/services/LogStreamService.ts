@@ -84,7 +84,7 @@ export class LogStreamService {
     level?: LogLevel,
   ): Promise<JobLog> {
     const timestamp = new Date();
-
+    const safeMessage = message.replace(/\u0000/g, "");
     const result = await query(
       `INSERT INTO job_logs (job_id, line_number, level, message, timestamp, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
@@ -92,8 +92,8 @@ export class LogStreamService {
       [
         jobId,
         lineNumber,
-        level ?? this.detectLogLevel(message),
-        message,
+        level ?? this.detectLogLevel(safeMessage),
+        safeMessage,
         timestamp,
       ],
     );
