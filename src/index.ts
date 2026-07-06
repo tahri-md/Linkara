@@ -9,6 +9,7 @@ import { testRedisConnection, closeRedisConnection } from './queue/redis.js';
 import { createJobExecutionWorker } from './queue/worker.js';
 import type { Worker } from 'bullmq';
 import cors from 'cors';
+import { WebhooksService } from './services/WebhooksService.js';
 const PORT = process.env.PORT || 4000;
 
 // Fail fast if required env vars are missing
@@ -30,7 +31,11 @@ async function startServer() {
   // Start the job execution worker
   jobWorker = createJobExecutionWorker();
 
-  app.use(express.json());
+  app.use(express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    },
+  }));
   app.use(cors({
   origin: true,
   credentials: true,
@@ -56,6 +61,44 @@ async function startServer() {
   app.get('/health/redis', async (req, res) => {
     const isConnected = await testRedisConnection();
     res.json({ status: isConnected ? 'ok' : 'failed' });
+  });
+
+  const webhooksService = new WebhooksService();
+
+  // Receives incoming webhook deliveries from GitHub/GitLab/Bitbucket.
+  // This is a plain REST endpoint (not GraphQL) since that's what providers POST to.
+  app.post('/webhooks/:id', async (req, res) => {
+    const webhookId = req.params.id;
+
+    // Each provider names its signature/event-type headers differently.
+    const signature =
+      (req.headers['x-hub-signature-256'] as string) || // GitHub
+      (req.headers['x-gitlab-token'] as string) ||       // GitLab
+      (req.headers['x-hub-signature'] as string) ||      // Bitbucket / legacy GitHub
+      '';
+
+    const eventType =
+      (req.headers['x-github-event'] as string) ||
+      (req.headers['x-gitlab-event'] as string) ||
+      (req.headers['x-event-key'] as string) ||
+      'push';
+
+    try {
+      const pipelineRun = await webhooksService.handleWebhookEvent(
+        webhookId,
+        req.body,
+        signature,
+        eventType,
+        (req as any).rawBody,
+      );
+      res.status(202).json({ success: true, pipelineRunId: pipelineRun.id });
+    } catch (error) {
+      console.error(`[WebhookRoute] Error processing incoming webhook:`, error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   });
 
   app.listen(PORT, async () => {
