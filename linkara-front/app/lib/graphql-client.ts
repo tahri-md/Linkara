@@ -50,9 +50,14 @@ export interface GqlWorkflowJobDefinition {
   depends_on: string[] | null;
   steps: Array<{ run: string }>;
 }
+export interface GqlWorkflowRepository {
+  url: string;
+  ref: string | null;
+}
 
 export interface GqlWorkflowDefinition {
   jobs: GqlWorkflowJobDefinition[];
+  repository: GqlWorkflowRepository;
 }
 
 export interface GqlWorkflow {
@@ -139,6 +144,10 @@ export interface GqlCreateWorkflowInput {
   description?: string;
   definition: {
     jobs: GqlWorkflowJobInput[];
+    repository: {
+      url: string;
+      ref?: string;
+    };
   };
   triggers: GqlWorkflowTriggerInput[];
   is_active?: boolean;
@@ -433,6 +442,10 @@ export async function fetchWorkflows(
           name
           description
           definition {
+            repository {
+              url
+              ref
+            }
             jobs {
               id
               name
@@ -470,6 +483,10 @@ export async function createWorkflow(
         name
         description
         definition {
+         repository {
+            url
+            ref
+          }
           jobs {
             id
             name
@@ -502,6 +519,10 @@ export async function fetchWorkflow(token: string | null | undefined, id: string
         name
         description
         definition {
+         repository {
+            url
+            ref
+          }
           jobs {
             id
             name

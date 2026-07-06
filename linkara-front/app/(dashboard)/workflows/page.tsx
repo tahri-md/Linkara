@@ -25,6 +25,8 @@ import { ChevronDown, Plus } from "lucide-react";
 const createWorkflowSchema = z.object({
   name: z.string().min(2, "Workflow name is required"),
   description: z.string().optional(),
+  repoUrl: z.string().min(1, "Repository URL is required"),
+  repoRef: z.string().optional(),
   jobName: z.string().min(2, "Job name is required"),
   jobImage: z.string().min(1, "Job image is required"),
   jobRun: z.string().min(1, "Job run command is required"),
@@ -48,6 +50,8 @@ export default function WorkflowsPage() {
     defaultValues: {
       name: "",
       description: "",
+      repoUrl: "",
+      repoRef: "main",
       jobName: "Build",
       jobImage: "node:20-alpine",
       jobRun: "npm run build",
@@ -94,6 +98,10 @@ export default function WorkflowsPage() {
         name: values.name,
         description: values.description || undefined,
         definition: {
+          repository: {
+            url: values.repoUrl,
+            ref: values.repoRef || "main",
+          },
           jobs: [
             {
               id: "build",
@@ -192,6 +200,34 @@ export default function WorkflowsPage() {
                       </FormItem>
                     )}
                   />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="repoUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Repository URL</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="https://github.com/org/repo.git" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="repoRef"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Branch / ref</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="main" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
@@ -310,7 +346,9 @@ export default function WorkflowsPage() {
                     <StatusBadge status={workflow.is_active ? "success" : "pending"} />
                   </TableCell>
                   <TableCell>{workflow.definition.jobs.length}</TableCell>
-                  <TableCell>{workflow.triggers.length}</TableCell>
+                  <TableCell className="max-w-48 truncate text-xs text-ink-400">
+                    {workflow.definition.repository?.url ?? "—"}
+                  </TableCell>                  <TableCell>{workflow.triggers.length}</TableCell>
                   <TableCell>{formatDate(workflow.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
