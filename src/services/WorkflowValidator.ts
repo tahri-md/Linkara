@@ -19,7 +19,9 @@ export class WorkflowValidator {
         errors: ["Workflow definition must contain jobs"],
       };
     }
-
+    if (!definition.repository || !definition.repository.url?.trim()) {
+      errors.push("Workflow definition must specify repository.url");
+    }
     const jobs = definition.jobs;
 
     for (const [key, job] of Object.entries(jobs)) {

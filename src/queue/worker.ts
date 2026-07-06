@@ -25,8 +25,8 @@ async function resolveJobInput(payload: JobExecutionPayload) {
   const jobResult = await query(
     `SELECT j.id, j.pipeline_run_id, j.workflow_job_id, j.job_name,
             j.docker_image, j.retry_count, j.exit_code,
-            w.definition
-     FROM jobs j
+            w.definition, pr.trigger_data
+        FROM jobs j
      JOIN pipeline_runs pr ON pr.id = j.pipeline_run_id
      JOIN workflows w ON w.id = pr.workflow_id
      WHERE j.id = $1`,
@@ -47,10 +47,22 @@ async function resolveJobInput(payload: JobExecutionPayload) {
   if (!workflowJob) {
     throw new Error(
       `Workflow job definition not found for job_id=${payload.jobId} ` +
-        `workflow_job_id=${row.workflow_job_id}`,
+      `workflow_job_id=${row.workflow_job_id}`,
     );
   }
+  const triggerData =
+    typeof row.trigger_data === "string"
+      ? JSON.parse(row.trigger_data)
+      : row.trigger_data ?? {};
 
+  const repoUrl = triggerData.repo_url || definition?.repository?.url;
+  const ref = triggerData.branch || definition?.repository?.ref || "main";
+
+  if (!repoUrl) {
+    throw new Error(
+      `No repository URL resolved for job_id=${payload.jobId}`,
+    );
+  }
   // Load secrets for this org
   const secretsResult = await query(
     `SELECT s.name, s.encrypted_value
@@ -84,6 +96,8 @@ async function resolveJobInput(payload: JobExecutionPayload) {
     jobName: row.job_name,
     dockerImage: workflowJob.image,
     steps: workflowJob.steps ?? [],
+    repoUrl,
+    ref,
     retryCount: payload.retryCount ?? row.retry_count ?? 0,
     maxRetry: payload.maxRetry ?? workflowJob.retry_count ?? 0,
     timeout: workflowJob.timeout,
@@ -153,7 +167,7 @@ export function createJobExecutionWorker(): Worker {
 
   console.log(
     `[worker] Job execution worker started ` +
-      `(concurrency=${queueConfig.jobExecutionConcurrency})`,
+    `(concurrency=${queueConfig.jobExecutionConcurrency})`,
   );
 
   return worker;

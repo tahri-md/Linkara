@@ -13,6 +13,8 @@ export interface JobExecutionInput {
   jobName: string;
   dockerImage: string;
   steps: Array<{ run: string }>;
+  repoUrl: string;
+  ref: string;
   env?: Record<string, string>;
   retryCount?: number;
   maxRetry?: number;
@@ -94,6 +96,8 @@ export class JobExecutorService {
         image: input.dockerImage,
         cmd: ["/bin/sh", "-c", command],
         env,
+        repoUrl: input.repoUrl,
+        ref: input.ref,
         timeout: input.timeout || 3600000,
       });
 

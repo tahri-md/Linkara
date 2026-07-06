@@ -17,8 +17,18 @@ type WorkflowJobDefinition {
   steps: [WorkflowStep!]!
 }
 
+type WorkflowRepository {
+  url: String!
+  ref: String
+}
+
+input WorkflowRepositoryInput {
+  url: String!
+  ref: String
+}
 type WorkflowDefinition {
   jobs: [WorkflowJobDefinition!]!
+  repository: WorkflowRepository!
 }
 
 type WorkflowTrigger {
@@ -62,6 +72,7 @@ input UpdateWorkflowInput {
 
 input WorkflowDefinitionInput {
   jobs: [WorkflowJobDefinitionInput!]!
+  repository: WorkflowRepositoryInput!
 }
 
 input WorkflowJobDefinitionInput {

@@ -171,6 +171,7 @@ export class WebhooksService {
     const data = {
       event: eventType,
       repo: payload.repository?.name,
+      repo_url: payload.repository?.clone_url,
       branch: payload.ref,
       commits: payload.commits || [],
       sender: payload.sender?.login || "unknown",

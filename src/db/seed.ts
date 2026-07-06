@@ -64,6 +64,10 @@ async function seedDatabase() {
     const workflowDef = {
       version: "1.0",
       name: "Sample Deploy Workflow",
+      repository: {
+        url: "https://github.com/tahri-md/Linkara.git",
+        ref: "main",
+      },
       jobs: [
         {
           id: "build",

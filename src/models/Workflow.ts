@@ -21,6 +21,10 @@ export interface WorkflowJobDefinition {
 
 export interface WorkflowDefinition {
   jobs: Record<string, WorkflowJobDefinition>;
+    repository: {
+    url: string;      // e.g. https://github.com/org/repo.git
+    ref?: string;     // default branch/tag, e.g. "main"
+  };
 }
 
 // ─── Triggers ────────────────────────────────────────────────────────────────
