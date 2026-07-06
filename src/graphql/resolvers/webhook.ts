@@ -1,11 +1,13 @@
 import { WebhooksService } from "../../services/WebhooksService.js";
 import { Webhook } from "../../models/Webhooks.js";
+import { query } from "../../db/connection.js";
+import { userCanAccessOrganization } from "./pipeline.js";
 
 const webhookService = new WebhooksService();
 
 interface CreateWebhookInput {
-  orgId: string;
-  workflowId: string;
+  org_id: string;
+  workflow_id: string;
   provider: "github" | "gitlab" | "bitbucket";
   events: string[];
 }
@@ -34,6 +36,8 @@ export const webhookResolvers = {
       if (!args.orgId) {
         throw new Error("orgId argument is required");
       }
+      const canAccess = await userCanAccessOrganization(context.userId, args.orgId);
+      if (!canAccess) throw new Error("You do not have access to this organization");
       return await webhookService.listWebhooks(args.orgId);
     },
 
@@ -51,6 +55,8 @@ export const webhookResolvers = {
       if (!args.id) {
         throw new Error("Webhook ID is required");
       }
+      const canAccess = await userCanAccessOrganization(context.userId, args.orgId);
+      if (!canAccess) throw new Error("You do not have access to this organization");
       const webhooks = await webhookService.listWebhooks(args.orgId);
       return webhooks.find((w) => w.id === args.id) || null;
     },
@@ -61,23 +67,19 @@ export const webhookResolvers = {
       _parent: any,
       args: { input: CreateWebhookInput },
       context: Context
-    ): Promise<{ webhook: Webhook; secret: string }> => {
+    ): Promise<Webhook> => {
       if (!context.userId) {
         throw new Error("Authentication required");
       }
 
-      const { orgId, workflowId, provider, events } = args.input;
-
-      if (!orgId || !workflowId || !provider || !events || events.length === 0) {
+      const { org_id, workflow_id, provider, events } = args.input;
+      if (!org_id || !workflow_id || !provider || !events || events.length === 0) {
         throw new Error("Missing required fields: orgId, workflowId, provider, and events are required");
       }
 
-      const webhook = await webhookService.createWebhook(orgId, workflowId, provider, events);
-
-      return {
-        webhook,
-        secret: (webhook as any).secret,
-      };
+      const canAccess = await userCanAccessOrganization(context.userId, org_id);
+      if (!canAccess) throw new Error("You do not have access to this organization");
+      return await webhookService.createWebhook(org_id, workflow_id, provider, events);
     },
 
     handleWebhookEvent: async (
@@ -113,23 +115,18 @@ export const webhookResolvers = {
 
     deleteWebhook: async (
       _parent: any,
-      args: { id: string; orgId: string },
+      args: { id: string },
       context: Context
     ): Promise<{ success: boolean; message: string }> => {
       if (!context.userId) {
         throw new Error("Authentication required");
       }
-      if (!args.orgId || !args.id) {
-        throw new Error("orgId and webhook id are required");
-      }
+      if (!args.id) throw new Error("Webhook id is required");
 
-      const webhooks = await webhookService.listWebhooks(args.orgId);
-      const webhookExists = webhooks.some((w) => w.id === args.id);
-
-      if (!webhookExists) {
-        throw new Error("Webhook not found or does not belong to your organization");
-      }
-
+      const webhook = await webhookService.getWebhookById(args.id);
+      if (!webhook) throw new Error("Webhook not found");
+      const canAccess = await userCanAccessOrganization(context.userId, webhook.org_id);
+      if (!canAccess) throw new Error("You do not have access to this webhook");
       const success = await webhookService.deleteWebhook(args.id);
 
       if (success) {
@@ -141,24 +138,28 @@ export const webhookResolvers = {
 
     updateWebhookEvents: async (
       _parent: any,
-      args: { id: string; orgId: string; events: string[] },
+      args: { id: string; events: string[] },
       context: Context
-    ): Promise<Webhook> => {
+    ) => {
       if (!context.userId) {
         throw new Error("Authentication required");
       }
-      if (!args.id || !args.orgId || !args.events || args.events.length === 0) {
+      if (!args.id || !args.events || args.events.length === 0) {
         throw new Error("Webhook ID, orgId, and events array are required");
       }
 
-      const webhooks = await webhookService.listWebhooks(args.orgId);
-      const webhook = webhooks.find((w) => w.id === args.id);
+      const webhook = await webhookService.getWebhookById(args.id);
+      if (!webhook) throw new Error("Webhook not found");
 
-      if (!webhook) {
-        throw new Error("Webhook not found or does not belong to your organization");
-      }
+      const canAccess = await userCanAccessOrganization(context.userId, webhook.org_id);
+      if (!canAccess) throw new Error("You do not have access to this webhook");
 
-      return webhook;
+      await query(`UPDATE webhooks SET events = $1 WHERE id = $2`, [
+        JSON.stringify(args.events),
+        args.id,
+      ]);
+
+      return await webhookService.getWebhookById(args.id);
     },
   },
 

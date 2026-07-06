@@ -60,9 +60,6 @@ input CreateWebhookInput {
   workflow_id: ID!
 
   provider: WebhookProvider!
-  url: String!
-
-  secret: String!
 
   events: [String!]!
 
@@ -107,14 +104,7 @@ type WebhookEventListResponse {
   total: Int!
 }
 
-# =========================
-# Queries
-# =========================
 
-type Query {
-  webhooks(orgId: ID!): WebhookListResponse!
-  webhookEvents(webhookId: ID!): WebhookEventListResponse!
-}
 
 # =========================
 # Mutations

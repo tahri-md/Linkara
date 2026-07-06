@@ -17,14 +17,20 @@ function getEncryptionKey(): string {
   return key;
 }
 
+function getApiBaseUrl(): string {
+  const url = process.env.API_BASE_URL;
+  if (!url) throw new Error("API_BASE_URL environment variable is not set");
+  return url;
+}
+
 export class WebhooksService {
   pipelineService = new PipelineService();
 
-  verifySignature(secret: string, payload: any, signature: string): boolean {
+  verifySignature(secret: string, rawBody: string, signature: string): boolean {
     try {
       const hmac = crypto
         .createHmac("sha256", secret)
-        .update(JSON.stringify(payload))
+        .update(rawBody)
         .digest("hex");
 
       const expectedSignature = `sha256=${hmac}`;
@@ -88,7 +94,7 @@ export class WebhooksService {
     const rawSecret = generateWebhookSecret();
     const encryptedSecret = encryptSecret(rawSecret, getEncryptionKey());
     const id = crypto.randomUUID();
-    const url = `${process.env.API_BASE_URL}/webhooks/${id}`;
+    const url = `${getApiBaseUrl()}/webhooks/${id}`;
 
     try {
       const result = await query(
@@ -102,7 +108,7 @@ export class WebhooksService {
           provider,
           url,
           encryptedSecret,
-          JSON.stringify(events),
+          events,
         ],
       );
 
@@ -120,6 +126,7 @@ export class WebhooksService {
     payload: any,
     signature: string,
     eventType: string,
+    rawBody?: string,
   ): Promise<PipelineRun> {
     if (!webhookId) {
       const error = "Webhook ID is required";
@@ -149,7 +156,8 @@ export class WebhooksService {
 
     // Decrypt the stored secret before verifying the signature
     const plaintextSecret = decryptSecret(webhook.secret, getEncryptionKey());
-    const isValid = this.verifySignature(plaintextSecret, payload, signature);
+    const bodyToVerify = rawBody ?? JSON.stringify(payload);
+    const isValid = this.verifySignature(plaintextSecret, bodyToVerify, signature);
     if (!isValid) {
       const error = `Webhook signature verification failed`;
       console.error(`[${SERVICE_NAME}] ${error}: id=${webhookId}`);
@@ -202,6 +210,10 @@ export class WebhooksService {
     }
 
     return pipelineRun;
+  }
+  async getWebhookById(id: string): Promise<Webhook | null> {
+    const result = await query(`SELECT * FROM webhooks WHERE id = $1`, [id]);
+    return result.rows[0] ?? null;
   }
 
   async listWebhooks(orgId: string): Promise<Webhook[]> {
