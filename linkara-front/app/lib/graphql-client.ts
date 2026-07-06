@@ -851,3 +851,63 @@ export async function fetchJobArtifacts(
     token,
   );
 }
+
+export type GqlWebhookProvider = "github" | "gitlab" | "bitbucket";
+
+export interface GqlWebhook {
+  id: string;
+  org_id: string;
+  workflow_id: string;
+  provider: GqlWebhookProvider;
+  url: string;
+  secret: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+export async function fetchWebhooks(
+  token: string | null,
+  orgId: string,
+): Promise<{ webhooks: { data: GqlWebhook[]; total: number } }> {
+  return requestGraphQL(
+    `
+    query Webhooks($orgId: ID!) {
+      webhooks(orgId: $orgId) {
+        data { id org_id workflow_id provider url secret events active createdAt }
+        total
+      }
+    }
+  `,
+    { orgId },
+    token,
+  );
+}
+
+export async function createWebhook(
+  token: string | null,
+  input: { org_id: string; workflow_id: string; provider: GqlWebhookProvider; events: string[] },
+): Promise<{ createWebhook: GqlWebhook }> {
+  return requestGraphQL(
+    `
+    mutation CreateWebhook($input: CreateWebhookInput!) {
+      createWebhook(input: $input) {
+        id org_id workflow_id provider url secret events active createdAt
+      }
+    }
+  `,
+    { input },
+    token,
+  );
+}
+
+export async function deleteWebhook(
+  token: string | null,
+  id: string,
+): Promise<{ deleteWebhook: boolean }> {
+  return requestGraphQL(
+    `mutation DeleteWebhook($id: ID!) { deleteWebhook(id: $id) }`,
+    { id },
+    token,
+  );
+}

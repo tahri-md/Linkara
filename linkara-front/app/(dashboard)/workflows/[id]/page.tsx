@@ -14,6 +14,7 @@ import { useApp } from "@/lib/store";
 import { fetchWorkflow, triggerPipelineRun, type GqlWorkflow, type GqlTriggerPipelineRunInput } from "@/lib/graphql-client";
 import { formatDate } from "@/lib/format";
 import { Play } from "lucide-react";
+import { WebhookPanel } from "@/components/webhook-panel";
 
 function prettyJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
@@ -187,6 +188,15 @@ export default function WorkflowDetailPage() {
               </div>
             ))
           )}
+        </CardContent>
+      </Card>
+      <Card className="border-ink-700 bg-ink-900/90">
+        <CardHeader>
+          <CardTitle>Webhook</CardTitle>
+          <CardDescription>Configure the integration that triggers this workflow from a push.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebhookPanel token={token} orgId={workflow.org_id} workflowId={workflow.id} />
         </CardContent>
       </Card>
 
