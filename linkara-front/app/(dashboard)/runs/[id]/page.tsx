@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { useApp } from "@/lib/store";
 import { fetchPipelineRun, type GqlPipelineRunResponse } from "@/lib/graphql-client";
 import { formatDate, formatDuration } from "@/lib/format";
+import { JobLogsDialog } from "@/components/job-logs-dialog";
 
 export default function RunDetailPage() {
   const params = useParams<{ id: string }>();
@@ -161,6 +162,7 @@ export default function RunDetailPage() {
                 <TableHead>Container</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Exit code</TableHead>
+                <TableHead>Logs</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -185,6 +187,15 @@ export default function RunDetailPage() {
                     <TableCell className="font-mono text-xs text-ink-500">{job.docker_container_id ?? "-"}</TableCell>
                     <TableCell>{formatDuration(job.duration_seconds)}</TableCell>
                     <TableCell className="font-mono text-xs text-ink-500">{job.exit_code ?? "-"}</TableCell>
+                    <TableCell>
+                      <JobLogsDialog
+                        jobId={job.id}
+                        jobName={job.job_name}
+                        token={token}
+                        isRunning={job.status === "RUNNING"}
+                        trigger={<Button variant="secondary" size="sm">View</Button>}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))
               )}

@@ -41,4 +41,6 @@ export const resolvers = {
   Organization: organizationResolvers.Organization,
   PipelineRun: pipelineResolvers.PipelineRun,
   Webhook: webhookResolvers.Webhook,
+  JobLog: jobResolvers.JobLog,
+  OrgMember: organizationResolvers.OrgMember,
 };

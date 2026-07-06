@@ -791,3 +791,33 @@ export async function restoreWorkflow(
 export function isGraphQLError(error: unknown): error is ClientError {
   return error instanceof ClientError;
 }
+
+export type GqlLogLevel = "INFO" | "WARNING" | "ERROR" | "DEBUG";
+
+export interface GqlJobLog {
+  id: string;
+  line_number: number | null;
+  timestamp: string;
+  level: GqlLogLevel;
+  message: string;
+}
+export async function fetchJobLogs(
+  token: string | null,
+  jobId: string,
+): Promise<{ jobLogs: GqlJobLog[] }> {
+  return requestGraphQL<{ jobLogs: GqlJobLog[] }>(
+    `
+    query JobLogs($jobId: ID!) {
+      jobLogs(jobId: $jobId) {
+        id
+        line_number
+        timestamp
+        level
+        message
+      }
+    }
+  `,
+    { jobId },
+    token,
+  );
+}

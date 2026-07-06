@@ -20,9 +20,23 @@ type Job {
   exit_code: Int
   created_at: String!
 }
+enum LogLevel {
+  INFO
+  WARNING
+  ERROR
+  DEBUG
+}
 
+type JobLog {
+  id: ID!
+  line_number: Int
+  timestamp: String!
+  level: LogLevel!
+  message: String!
+}
 extend type Query {
   job(id: ID!): Job
   jobsByPipelineRun(pipelineRunId: ID!): [Job!]!
   jobStatus(jobId: ID!): JobStatus
+  jobLogs(jobId: ID!): [JobLog!]!
 }

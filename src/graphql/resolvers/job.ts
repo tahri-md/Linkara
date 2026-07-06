@@ -1,7 +1,8 @@
 import { query } from '../../db/connection.js';
 import type { Job } from '../../models/Job.js';
 import { jobService } from '../../services/JobService.js';
-
+import { logStreamService } from '../../services/LogStreamService.js';
+import type { JobLog } from '../../models/JobLog.js';
 interface Context {
     userId?: string;
 }
@@ -16,6 +17,13 @@ interface PipelineRunArgs {
 
 interface JobStatusArgs {
     jobId: string;
+}
+interface JobLogsArgs {
+    jobId: string;
+}
+
+function toGraphQLLogLevel(level: string): string {
+    return level.toUpperCase();
 }
 
 function toGraphQLJobStatus(status: string | null): string | null {
@@ -104,11 +112,26 @@ export const jobResolvers = {
             const status = await jobService.getJobStatus(args.jobId);
             return toGraphQLJobStatus(status);
         },
+        async jobLogs(_: unknown, args: JobLogsArgs, context: Context): Promise<JobLog[]> {
+            if (!context.userId) {
+                throw new Error('Authentication required');
+            }
+
+            const canAccess = await userCanAccessJob(context.userId, args.jobId);
+            if (!canAccess) {
+                throw new Error('You do not have permission to access logs for this job');
+            }
+
+            return logStreamService.getJobLogs(args.jobId);
+        },
     },
 
     Job: {
         status: (job: Job): string => {
             return toGraphQLJobStatus(job.status) || 'PENDING';
         },
+    },
+    JobLog: {
+        level: (log: JobLog): string => toGraphQLLogLevel(log.level),
     },
 };
