@@ -57,7 +57,7 @@ export interface GqlWorkflowRepository {
 
 export interface GqlWorkflowDefinition {
   jobs: GqlWorkflowJobDefinition[];
-  repository: GqlWorkflowRepository;
+  repository: GqlWorkflowRepository|null;
 }
 
 export interface GqlWorkflow {

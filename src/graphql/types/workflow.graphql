@@ -28,7 +28,7 @@ input WorkflowRepositoryInput {
 }
 type WorkflowDefinition {
   jobs: [WorkflowJobDefinition!]!
-  repository: WorkflowRepository!
+  repository: WorkflowRepository
 }
 
 type WorkflowTrigger {
