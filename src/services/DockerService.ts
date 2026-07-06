@@ -221,11 +221,9 @@ export class DockerService {
     }
   }
   async checkoutRepo(repoUrl: string, ref: string, volumeName: string): Promise<void> {
-    console.log(`[docker] Checking out ${repoUrl}@${ref} into volume ${volumeName}`);
+    const branch = ref.replace(/^refs\/heads\//, "");
+    console.log(`[docker] Checking out ${repoUrl}@${branch} into volume ${volumeName}`);
 
-    // Defensive: a prior attempt with the same jobId may have left a populated
-    // volume behind (e.g. crash between checkout and cleanup). Wipe it first
-    // so retries always start from a clean, empty volume.
     await this.removeVolume(volumeName);
 
     await docker.createVolume({ Name: volumeName });
@@ -234,7 +232,7 @@ export class DockerService {
 
     const cloneContainer = await docker.createContainer({
       Image: "alpine/git:latest",
-      Cmd: ["clone", "--depth", "1", "--branch", ref, repoUrl, "/repo"],
+      Cmd: ["clone", "--depth", "1", "--branch", branch, repoUrl, "/repo"],
       HostConfig: {
         Binds: [`${volumeName}:/repo`],
       },
