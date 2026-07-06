@@ -40,7 +40,7 @@ function toGraphQLJobStatus(status: string | null): string | null {
     return normalized.toUpperCase();
 }
 
-async function userCanAccessJob(userId: string, jobId: string): Promise<boolean> {
+export async function userCanAccessJob(userId: string, jobId: string): Promise<boolean> {
     const result = await query(
         `SELECT 1
          FROM jobs j

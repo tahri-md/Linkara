@@ -8,6 +8,7 @@ import { webhookResolvers } from './webhook.js';
 import { notificationResolvers } from './notification.js';
 import { rbacResolvers } from './rbac.js';
 import { tenancyResolvers } from './tenancy.js';
+import { artifactResolvers } from './artifact.js';
 
 export const resolvers = {
   Query: {
@@ -21,6 +22,7 @@ export const resolvers = {
     ...notificationResolvers.Query,
     ...rbacResolvers.Query,
     ...tenancyResolvers.Query,
+    ...artifactResolvers.Query,
   },
   Mutation: {
     ...authResolvers.Mutation,
@@ -43,4 +45,5 @@ export const resolvers = {
   Webhook: webhookResolvers.Webhook,
   JobLog: jobResolvers.JobLog,
   OrgMember: organizationResolvers.OrgMember,
+  
 };

@@ -44,6 +44,11 @@ const tenancySchema = readFileSync(
   resolve(__dirname, "./types/tenancy.graphql"),
   "utf-8",
 );
+const artifactSchema = readFileSync(
+  resolve(__dirname, "./types/artifact.graphql"),
+  "utf-8",
+);
+
 
 export const typeDefs = `
   ${userSchema}
@@ -56,7 +61,7 @@ export const typeDefs = `
   ${notificationSchema}
   ${rbacSchema}
   ${tenancySchema}
-
+  ${artifactSchema}
 
 `;
 

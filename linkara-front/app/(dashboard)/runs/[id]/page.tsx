@@ -12,6 +12,7 @@ import { useApp } from "@/lib/store";
 import { fetchPipelineRun, type GqlPipelineRunResponse } from "@/lib/graphql-client";
 import { formatDate, formatDuration } from "@/lib/format";
 import { JobLogsDialog } from "@/components/job-logs-dialog";
+import { JobArtifactsDialog } from "@/components/job-artifacts-dialog";
 
 export default function RunDetailPage() {
   const params = useParams<{ id: string }>();
@@ -163,6 +164,7 @@ export default function RunDetailPage() {
                 <TableHead>Duration</TableHead>
                 <TableHead>Exit code</TableHead>
                 <TableHead>Logs</TableHead>
+                <TableHead>Artifacts</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -193,6 +195,14 @@ export default function RunDetailPage() {
                         jobName={job.job_name}
                         token={token}
                         isRunning={job.status === "RUNNING"}
+                        trigger={<Button variant="secondary" size="sm">View</Button>}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <JobArtifactsDialog
+                        jobId={job.id}
+                        jobName={job.job_name}
+                        token={token}
                         trigger={<Button variant="secondary" size="sm">View</Button>}
                       />
                     </TableCell>

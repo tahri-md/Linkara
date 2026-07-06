@@ -1,0 +1,12 @@
+type JobArtifact {
+  id: ID!
+  job_id: ID!
+  name: String!
+  file_size_bytes: Int!
+  s3_url: String
+  uploaded_at: String!
+}
+
+extend type Query {
+  jobArtifacts(jobId: ID!): [JobArtifact!]!
+}

@@ -821,3 +821,33 @@ export async function fetchJobLogs(
     token,
   );
 }
+
+export interface GqlJobArtifact {
+  id: string;
+  job_id: string;
+  name: string;
+  file_size_bytes: number;
+  s3_url: string | null;
+  uploaded_at: string;
+}
+
+export async function fetchJobArtifacts(
+  token: string | null,
+  jobId: string,
+): Promise<{ jobArtifacts: GqlJobArtifact[] }> {
+  return requestGraphQL<{ jobArtifacts: GqlJobArtifact[] }>(
+    `
+    query JobArtifacts($jobId: ID!) {
+      jobArtifacts(jobId: $jobId) {
+        id
+        name
+        file_size_bytes
+        s3_url
+        uploaded_at
+      }
+    }
+  `,
+    { jobId },
+    token,
+  );
+}
