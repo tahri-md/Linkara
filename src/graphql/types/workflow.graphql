@@ -13,6 +13,8 @@ type WorkflowJobDefinition {
   id: String!
   name: String!
   image: String!
+  retry_count: Int
+  timeout: Int
   depends_on: [String!]
   steps: [WorkflowStep!]!
 }
@@ -79,6 +81,8 @@ input WorkflowJobDefinitionInput {
   id: String!
   name: String!
   image: String!
+  retry_count: Int
+  timeout: Int
   depends_on: [String!]
   steps: [WorkflowStepInput!]!
 }

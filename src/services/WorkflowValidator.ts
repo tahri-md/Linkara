@@ -69,6 +69,12 @@ export class WorkflowValidator {
         }
       });
     }
+     if (job.retry_count !== undefined && (job.retry_count < 0 || job.retry_count > 10)) {
+       errors.push(`Job "${job.id ?? key}" retry_count must be between 0 and 10`);
+     }
+     if (job.timeout !== undefined && job.timeout <= 0) {
+       errors.push(`Job "${job.id ?? key}" timeout must be a positive number of milliseconds`);
+     }
 
     if (job.depends_on) {
       if (!Array.isArray(job.depends_on)) {

@@ -15,6 +15,7 @@ export interface WorkflowJobDefinition {
   name: string;
   image: string;
   retry_count?: number;
+  timeout?: number;
   depends_on?: string[];
   steps: WorkflowStep[];
 }
