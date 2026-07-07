@@ -102,9 +102,14 @@ const createWorkflowSchema = z
     }
   });
 
-type CreateWorkflowValues = z.infer<typeof createWorkflowSchema>;
+// The schema uses `.default(...)` on several job fields, so the pre-parse
+// (input) shape react-hook-form works with has those fields optional, while
+// the post-parse (output) shape passed to onSubmit has them filled in and
+// required. Track both so useForm's generics line up with zodResolver.
+type CreateWorkflowFormInput = z.input<typeof createWorkflowSchema>;
+type CreateWorkflowValues = z.output<typeof createWorkflowSchema>;
 
-const DEFAULT_JOBS: CreateWorkflowValues["jobs"] = [
+const DEFAULT_JOBS: CreateWorkflowFormInput["jobs"] = [
   {
     key: "job-0",
     id: "build",
@@ -126,7 +131,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<GqlWorkflow[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const form = useForm<CreateWorkflowValues>({
+  const form = useForm<CreateWorkflowFormInput, any, CreateWorkflowValues>({
     resolver: zodResolver(createWorkflowSchema),
     defaultValues: {
       name: "",
@@ -438,7 +443,7 @@ export default function WorkflowsPage() {
                                 <FormItem>
                                   <FormLabel>Retry count</FormLabel>
                                   <FormControl>
-                                    <Input type="number" min={0} max={10} {...field} />
+                                    <Input type="number" min={0} max={10} {...field} value={(field.value as number | undefined) ?? 0} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -451,7 +456,7 @@ export default function WorkflowsPage() {
                                 <FormItem>
                                   <FormLabel>Timeout (minutes)</FormLabel>
                                   <FormControl>
-                                    <Input type="number" min={1} max={360} {...field} />
+                                    <Input type="number" min={1} max={360} {...field} value={(field.value as number | undefined) ?? 60} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
