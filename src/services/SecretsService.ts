@@ -276,7 +276,30 @@ export class SecretsService {
 
     return decryptSecret(secret.encrypted_value, this.getEncryptionKey());
   }
+  async getSecretsForJob(
+    jobId: string,
+    orgId: string,
+  ): Promise<Record<string, string>> {
+    const result = await query(
+      `SELECT id, name, encrypted_value FROM secrets WHERE org_id = $1`,
+      [orgId],
+    );
 
+    const secrets: Record<string, string> = {};
+    const key = this.getEncryptionKey();
+
+    for (const row of result.rows) {
+      secrets[row.name] = decryptSecret(row.encrypted_value, key);
+
+      await query(`UPDATE secrets SET accessed_at = NOW() WHERE id = $1`, [row.id]);
+      await this.logAudit(orgId, null, "secret.accessed_by_job", row.id, {
+        jobId,
+        name: row.name,
+      });
+    }
+
+    return secrets;
+  }
   async rotateSecret(
     orgId: string,
     secretId: string,

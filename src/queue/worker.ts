@@ -7,6 +7,7 @@ import {
 import { jobExecutorService } from "../services/JobExecutorService.js";
 import { PipelineService } from "../services/PipelineService.js";
 import { query } from "../db/connection.js";
+import { secretsService } from "../services/SecretsService.js";
 
 interface JobExecutionPayload {
   jobId: string;
@@ -25,7 +26,7 @@ async function resolveJobInput(payload: JobExecutionPayload) {
   const jobResult = await query(
     `SELECT j.id, j.pipeline_run_id, j.workflow_job_id, j.job_name,
             j.docker_image, j.retry_count, j.exit_code,
-            w.definition, pr.trigger_data
+            w.definition, w.org_id, pr.trigger_data
         FROM jobs j
      JOIN pipeline_runs pr ON pr.id = j.pipeline_run_id
      JOIN workflows w ON w.id = pr.workflow_id
@@ -63,6 +64,7 @@ async function resolveJobInput(payload: JobExecutionPayload) {
       `No repository URL resolved for job_id=${payload.jobId}`,
     );
   }
+  const secrets = await secretsService.getSecretsForJob(payload.jobId, row.org_id);
   // Load secrets for this org
   const secretsResult = await query(
     `SELECT s.name, s.encrypted_value
@@ -72,7 +74,6 @@ async function resolveJobInput(payload: JobExecutionPayload) {
     [row.pipeline_run_id],
   );
 
-  const secrets: Record<string, string> = {};
   if (secretsResult.rows.length > 0) {
     const { decryptSecret } = await import("../utils/encryption.js");
     const encryptionKey = process.env.ENCRYPTION_KEY;
