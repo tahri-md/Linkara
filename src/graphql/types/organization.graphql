@@ -47,11 +47,36 @@ input UpdateMemberRoleInput {
 extend type Query {
   organizations: [Organization!]!
   organization(id: ID!): Organization
+  pendingInvites(organizationId: ID!): [OrgInvite!]!
 }
 
 extend type Mutation {
   createOrganization(input: CreateOrganizationInput!): Organization!
-  addOrgMember(input: AddOrgMemberInput!): OrgMember!
+  inviteMember(input: InviteMemberInput!): OrgInvite!
+  revokeInvite(organizationId: ID!, inviteId: ID!): Boolean!
+  acceptInvite(token: String!): OrgMember!
   updateMemberRole(input: UpdateMemberRoleInput!): OrgMember!
   removeMember(organizationId: ID!, userId: ID!): Boolean!
+}
+enum InviteStatus {
+  pending
+  accepted
+  revoked
+  expired
+}
+
+type OrgInvite {
+  id: ID!
+  org_id: ID!
+  email: String!
+  role: OrgRole!
+  status: InviteStatus!
+  expires_at: String!
+  created_at: String!
+}
+
+input InviteMemberInput {
+  organizationId: ID!
+  email: String!
+  role: OrgRole!
 }

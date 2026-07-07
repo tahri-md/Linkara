@@ -28,6 +28,21 @@ export const organizationResolvers = {
 
       return org;
     },
+    pendingInvites: async (
+      _: unknown,
+      args: { organizationId: string },
+      context: Context,
+    ) => {
+      if (!context.userId) throw new Error('Unauthorized');
+      const hasPermission = await OrganizationService.validateUserPermissions(
+        args.organizationId,
+        context.userId,
+        'ADMIN',
+      );
+      if (!hasPermission) throw new Error('Insufficient permissions');
+      return OrganizationService.listPendingInvites(args.organizationId);
+    },
+
   },
 
   Mutation: {
@@ -48,8 +63,7 @@ export const organizationResolvers = {
         input.avatar_url
       );
     },
-
-    addOrgMember: async (
+    inviteMember: async (
       _: unknown,
       { input }: { input: any },
       context: Context
@@ -68,7 +82,37 @@ export const organizationResolvers = {
         throw new Error('Forbidden: You do not have permission to add members');
       }
 
-      return OrganizationService.addOrgMember(input.organizationId, input.userId, input.role);
+      return OrganizationService.inviteMember(
+        input.organizationId,
+        input.email,
+        input.role,
+        context.userId,
+      );
+    },
+
+    revokeInvite: async (
+      _: unknown,
+      args: { organizationId: string; inviteId: string },
+      context: Context,
+    ) => {
+      if (!context.userId) throw new Error('Unauthorized');
+      const hasPermission = await OrganizationService.validateUserPermissions(
+        args.organizationId,
+        context.userId,
+        'ADMIN',
+      );
+      if (!hasPermission) throw new Error('Insufficient permissions');
+      await OrganizationService.revokeInvite(args.organizationId, args.inviteId);
+      return true;
+    },
+
+    acceptInvite: async (
+      _: unknown,
+      args: { token: string },
+      context: Context,
+    ) => {
+      if (!context.userId) throw new Error('You must be logged in to accept an invite');
+      return OrganizationService.acceptInvite(args.token, context.userId);
     },
 
     updateMemberRole: async (
