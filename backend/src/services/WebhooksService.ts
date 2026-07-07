@@ -180,7 +180,7 @@ export class WebhooksService {
       event: eventType,
       repo: payload.repository?.name,
       repo_url: payload.repository?.clone_url,
-      branch: payload.ref,
+      branch: payload.ref?.replace(/^refs\/heads\//, ""),
       commits: payload.commits || [],
       sender: payload.sender?.login || "unknown",
     };
