@@ -27,7 +27,7 @@ interface TriggerPipelineRunArgs {
 const pipelineService = new PipelineService();
 const workflowService = new WorkflowService();
 
-async function userCanAccessOrganization(userId: string, orgId: string): Promise<boolean> {
+export async function userCanAccessOrganization(userId: string, orgId: string): Promise<boolean> {
   const result = await query(
     `SELECT 1 FROM org_members WHERE user_id = $1 AND org_id = $2 LIMIT 1`,
     [userId, orgId]
