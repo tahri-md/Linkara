@@ -59,6 +59,29 @@ export class NotificationService {
     }
   }
 
+  async sendInviteEmail(email: string, orgName: string, token: string): Promise<void> {
+    const acceptUrl = `${process.env.APP_BASE_URL || "http://localhost:3000"}/invites/${token}`;
+
+    const html = `
+     <html>
+       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+           <h2>You've been invited to join ${orgName} on Linkara</h2>
+           <p>Click below to accept the invite. This link expires in 7 days.</p>
+           <p><a href="${acceptUrl}" style="background:#33ffa0;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;">Accept invite</a></p>
+           <p><small>If you weren't expecting this, you can ignore this email.</small></p>
+         </div>
+       </body>
+     </html>
+   `;
+    +
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM || "noreply@linkara.dev",
+        to: email,
+        subject: `You've been invited to join ${orgName} on Linkara`,
+        html,
+      });
+  }
   async sendSlackNotification(
     webhookUrl: string,
     message: SlackMessage,

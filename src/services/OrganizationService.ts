@@ -1,23 +1,37 @@
 import { query } from "../db/connection.js";
+import crypto from "crypto";
 import {
   Organization,
   OrgMember,
   OrgRole,
   OrgMemberWithUser,
 } from "../models/Organization.js";
-
+import { notificationService } from "./NotificationService.js";
+export interface OrgInvite {
+  id: string;
+  org_id: string;
+  email: string;
+  role: OrgRole;
+  token: string;
+  invited_by: string | null;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expires_at: Date;
+  created_at: Date;
+  accepted_at: Date | null;
+}
 export class OrganizationServiceImpl {
   async createOrganization(
     userId: string,
     name: string,
     slug: string,
+    description?: string,
     avatar_url?: string,
   ): Promise<Organization> {
     const result = await query(
-      `INSERT INTO organizations (name, slug, owner_id, avatar_url, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
+      `INSERT INTO organizations (name, slug, description, owner_id, avatar_url, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING id, name, description, slug, owner_id, avatar_url, created_at`,
-      [name, slug, userId, avatar_url || null],
+      [name, slug, description || null, userId, avatar_url || null],
     );
 
     const orgId = result.rows[0].id;
@@ -53,6 +67,122 @@ export class OrganizationServiceImpl {
     );
 
     return result.rows[0];
+  }
+
+
+  async inviteMember(
+    orgId: string,
+    email: string,
+    role: OrgRole,
+    invitedBy: string,
+  ): Promise<OrgInvite> {
+    const existingMember = await query(
+      `SELECT om.id FROM org_members om
+       JOIN users u ON u.id = om.user_id
+       WHERE om.org_id = $1 AND u.email = $2`,
+      [orgId, email],
+    );
+    if (existingMember.rows.length > 0) {
+      throw new Error("This person is already a member of this organization");
+    }
+
+    const existingPending = await query(
+      `SELECT id FROM org_invites WHERE org_id = $1 AND email = $2 AND status = 'pending'`,
+      [orgId, email],
+    );
+    if (existingPending.rows.length > 0) {
+      throw new Error("An invite is already pending for this email");
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const result = await query(
+      `INSERT INTO org_invites (org_id, email, role, token, invited_by, status, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+       RETURNING *`,
+      [orgId, email, role, token, invitedBy, expiresAt],
+    );
+
+    const invite = result.rows[0] as OrgInvite;
+
+    const orgResult = await query(`SELECT name FROM organizations WHERE id = $1`, [orgId]);
+    const orgName = orgResult.rows[0]?.name ?? "an organization";
+
+    await notificationService.sendInviteEmail(email, orgName, token).catch((err) => {
+      console.error(`[org-invite] Failed to send invite email to ${email}:`, err);
+    });
+
+    return invite;
+  }
+
+  async listPendingInvites(orgId: string): Promise<OrgInvite[]> {
+    const result = await query(
+      `SELECT * FROM org_invites
+       WHERE org_id = $1 AND status = 'pending' AND expires_at > NOW()
+       ORDER BY created_at DESC`,
+      [orgId],
+    );
+    return result.rows;
+  }
+
+  async revokeInvite(orgId: string, inviteId: string): Promise<void> {
+    const result = await query(
+      `UPDATE org_invites SET status = 'revoked'
+       WHERE id = $1 AND org_id = $2 AND status = 'pending'`,
+      [inviteId, orgId],
+    );
+    if (result.rowCount === 0) {
+      throw new Error("Invite not found or already resolved");
+    }
+  }
+
+  async acceptInvite(token: string, userId: string): Promise<OrgMember> {
+    const inviteResult = await query(
+      `SELECT * FROM org_invites WHERE token = $1 LIMIT 1`,
+      [token],
+    );
+    if (inviteResult.rows.length === 0) {
+      throw new Error("Invite not found");
+    }
+
+    const invite = inviteResult.rows[0] as OrgInvite;
+
+    if (invite.status !== "pending") {
+      throw new Error(`This invite has already been ${invite.status}`);
+    }
+    if (new Date(invite.expires_at) < new Date()) {
+      await query(`UPDATE org_invites SET status = 'expired' WHERE id = $1`, [invite.id]);
+      throw new Error("This invite has expired");
+    }
+
+    const userResult = await query(`SELECT email FROM users WHERE id = $1`, [userId]);
+    if (userResult.rows.length === 0) {
+      throw new Error("User not found");
+    }
+    if (userResult.rows[0].email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw new Error("This invite was sent to a different email address");
+    }
+
+    const existingMember = await query(
+      `SELECT id FROM org_members WHERE org_id = $1 AND user_id = $2`,
+      [invite.org_id, userId],
+    );
+    if (existingMember.rows.length > 0) {
+      await query(`UPDATE org_invites SET status = 'accepted', accepted_at = NOW() WHERE id = $1`, [invite.id]);
+      throw new Error("You are already a member of this organization");
+    }
+
+    const memberResult = await query(
+      `INSERT INTO org_members (org_id, user_id, role, joined_at)
+       VALUES ($1, $2, $3, NOW())
+       RETURNING id, org_id, user_id, role, joined_at`,
+      [invite.org_id, userId, invite.role],
+    );
+
+    await query(`UPDATE org_invites SET status = 'accepted', accepted_at = NOW() WHERE id = $1`, [invite.id]);
+
+    return memberResult.rows[0];
   }
 
   async removeMember(orgId: string, userId: string): Promise<void> {
