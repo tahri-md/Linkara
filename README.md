@@ -4,8 +4,10 @@ Linkara is a full-stack CI/CD pipeline automation platform. It lets teams define
 
 The project has two parts:
 
-- **Backend** (repository root) — a TypeScript/Node.js GraphQL API built on Apollo Server, backed by PostgreSQL and Redis, with job execution handled by BullMQ workers running against Docker.
-- **Frontend** (`linkara-front/`) — a Next.js 16 / React 19 dashboard that talks to the backend over GraphQL.
+- **Backend** (`backend/`) — a TypeScript/Node.js GraphQL API built on Apollo Server, backed by PostgreSQL and Redis, with job execution handled by BullMQ workers running against Docker.
+- **Frontend** (`frontend/`) — a Next.js 16 / React 19 dashboard that talks to the backend over GraphQL.
+
+The whole stack (Postgres, Redis, Docker-in-Docker, backend, and frontend) can be run with a single `docker compose up --build`, or each part can be run natively — see [Getting Started](#getting-started).
 
 ## Table of Contents
 
@@ -59,102 +61,140 @@ The project has two parts:
 
 ```
 Linkara-main/
-├── src/                          # Backend source
-│   ├── index.ts                  # Express + Apollo server entrypoint
-│   ├── config/                   # Apollo and queue configuration
-│   ├── middleware/                # Auth middleware
-│   ├── services/                 # Business logic (one service per domain)
-│   ├── graphql/
-│   │   ├── types/                # GraphQL SDL type definitions (.graphql)
-│   │   ├── resolvers/            # Resolver implementations
-│   │   └── schema.ts             # Combines type defs into the executable schema
-│   ├── queue/                    # BullMQ queue setup, Redis connection, worker
-│   ├── models/                   # TypeScript types/interfaces for DB entities
-│   ├── db/
-│   │   ├── migrations/           # Numbered SQL migration files + runner
-│   │   ├── connection.ts         # PostgreSQL connection pool
-│   │   └── seed.ts               # Development seed data
-│   └── utils/                    # Encryption and permission helpers
-├── linkara-front/                # Frontend (Next.js app)
+├── backend/                       # Backend (Node.js/TypeScript)
+│   ├── src/
+│   │   ├── index.ts               # Express + Apollo server entrypoint
+│   │   ├── config/                # Apollo and queue configuration
+│   │   ├── middleware/            # Auth middleware
+│   │   ├── services/               # Business logic (one service per domain)
+│   │   ├── graphql/
+│   │   │   ├── types/             # GraphQL SDL type definitions (.graphql)
+│   │   │   ├── resolvers/         # Resolver implementations
+│   │   │   └── schema.ts          # Combines type defs into the executable schema
+│   │   ├── queue/                 # BullMQ queue setup, Redis connection, worker
+│   │   ├── models/                # TypeScript types/interfaces for DB entities
+│   │   ├── db/
+│   │   │   ├── migrations/        # Numbered SQL migration files + runner
+│   │   │   ├── connection.ts      # PostgreSQL connection pool
+│   │   │   └── seed.ts            # Development seed data
+│   │   └── utils/                 # Encryption and permission helpers
+│   ├── Dockerfile.dev             # Dev container (hot-reload via nodemon)
+│   └── .env.example               # Backend environment variable reference
+├── frontend/                      # Frontend (Next.js app)
 │   ├── app/
-│   │   ├── (auth)/               # Login and signup pages
-│   │   ├── (dashboard)/          # Authenticated app: dashboard, workflows,
-│   │   │                         # runs, organizations, invites
-│   │   ├── components/           # Shared React components (incl. ui/ primitives)
-│   │   └── lib/                  # GraphQL client, app state, formatting helpers
-│   └── middleware.ts              # Route protection
-├── docker-compose.yml            # PostgreSQL, Redis, and Docker-in-Docker services
-├── .env.example                  # Backend environment variable reference
-└── linkara-front/.env.example    # Frontend environment variable reference
+│   │   ├── (auth)/                # Login and signup pages
+│   │   ├── (dashboard)/           # Authenticated app: dashboard, workflows,
+│   │   │                          # runs, organizations, invites
+│   │   ├── components/            # Shared React components (incl. ui/ primitives)
+│   │   └── lib/                   # GraphQL client, app state, formatting helpers
+│   ├── middleware.ts               # Route protection
+│   └── Dockerfile.dev              # Dev container (hot-reload via next dev)
+├── docker-compose.yml              # Postgres, Redis, Docker-in-Docker, backend, frontend
+└── README.md
 ```
 
 ## Prerequisites
 
-- Node.js 18 or later
-- npm 9 or later
-- Docker and Docker Compose (for PostgreSQL, Redis, and job execution)
+- Docker and Docker Compose (this covers everything — Postgres, Redis, Docker-in-Docker, backend, and frontend)
+- Node.js 18+ and npm 9+ only if you plan to run the backend or frontend natively instead of via Docker
 
 ## Getting Started
 
-### 1. Clone and install dependencies
+### Option A: Run everything with Docker Compose (recommended)
 
-```bash
-git clone https://github.com/tahri-md/Linkara.git
-cd Linkara-main
+1. **Clone the repo**
 
-# Backend
-npm install
+   ```bash
+   git clone https://github.com/tahri-md/Linkara.git
+   cd Linkara-main
+   ```
 
-# Frontend
-cd linkara-front
-npm install
-cd ..
-```
+2. **Configure backend environment variables**
 
-### 2. Start supporting services
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
 
-```bash
-docker-compose up -d
-```
+   Fill in at minimum `JWT_SECRET` and `ENCRYPTION_KEY` (the backend refuses to boot without them — generate one with `openssl rand -base64 32`). The database/Redis/Docker host values in this file are overridden automatically by `docker-compose.yml` when running in containers, so you don't need to edit those.
 
-This starts PostgreSQL, Redis, and a Docker-in-Docker container used to run pipeline jobs.
+3. **Build and start everything**
 
-### 3. Configure environment variables
+   ```bash
+   docker compose up --build
+   ```
 
-```bash
-cp .env.example .env
-cp linkara-front/.env.example linkara-front/.env.local
-```
+   This starts, in order: PostgreSQL, Redis, a Docker-in-Docker container (used to run pipeline job containers), the backend API, and the frontend.
 
-Fill in the values described in [Environment Variables](#environment-variables) below. At minimum, `JWT_SECRET` and `ENCRYPTION_KEY` must be set or the backend will refuse to start.
+   - Frontend: `http://localhost:3000`
+   - Backend GraphQL API: `http://localhost:4000/graphql`
+   - Backend health check: `http://localhost:4000/health`
 
-### 4. Run database migrations and seed data
+4. **Run database migrations** (first run only, in a separate terminal)
 
-```bash
-npm run db:migrate
-npm run db:seed   # optional, adds development sample data
-```
+   ```bash
+   docker compose exec backend npm run db:migrate
+   docker compose exec backend npm run db:seed   # optional, adds development sample data
+   ```
 
-### 5. Start the backend
+Backend and frontend source are bind-mounted into their containers, so code changes hot-reload without rebuilding.
 
-```bash
-npm run dev
-```
+### Option B: Run natively (no Docker for backend/frontend)
 
-The GraphQL API is served at `http://localhost:4000/graphql` by default, with a health check at `http://localhost:4000/health`.
+1. **Install dependencies**
 
-### 6. Start the frontend
+   ```bash
+   git clone https://github.com/tahri-md/Linkara.git
+   cd Linkara-main
 
-```bash
-cd linkara-front
-npm run dev
-```
+   # Backend
+   cd backend && npm install --legacy-peer-deps && cd ..
 
-The dashboard is served at `http://localhost:3000` by default.
+   # Frontend
+   cd frontend && npm install && cd ..
+   ```
+
+2. **Start supporting services only** (Postgres, Redis, Docker-in-Docker)
+
+   ```bash
+   docker compose up -d postgres redis docker-dind
+   ```
+
+3. **Configure environment variables**
+
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+   Fill in the values described in [Environment Variables](#environment-variables) below. At minimum, `JWT_SECRET` and `ENCRYPTION_KEY` must be set or the backend will refuse to start. Since you're running natively, `DATABASE_HOST`/`REDIS_HOST` should stay as `localhost` (matching the ports Compose exposes on the host).
+
+4. **Run database migrations and seed data**
+
+   ```bash
+   cd backend
+   npm run db:migrate
+   npm run db:seed   # optional, adds development sample data
+   ```
+
+5. **Start the backend**
+
+   ```bash
+   npm run dev
+   ```
+
+   The GraphQL API is served at `http://localhost:4000/graphql` by default, with a health check at `http://localhost:4000/health`.
+
+6. **Start the frontend**
+
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+   The dashboard is served at `http://localhost:3000` by default.
 
 ## Environment Variables
 
-Full reference lives in `.env.example` (backend) and `linkara-front/.env.example` (frontend). Summary:
+Full reference lives in `backend/.env.example`. Summary:
 
 ### Backend (required)
 
@@ -173,7 +213,7 @@ Full reference lives in `.env.example` (backend) and `linkara-front/.env.example
 | `API_BASE_URL`, `APP_BASE_URL` | Used to build links in emails/notifications. |
 | `JWT_EXPIRATION` | Token lifetime, e.g. `24h`. |
 | `EMAIL_FROM`, `EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASSWORD` | Outbound email notification settings. |
-| `DOCKER_HOST` | Docker socket/endpoint used to run job containers. |
+| `DOCKER_HOST` | Docker socket/endpoint used to run job containers. Natively: leave as `unix:///var/run/docker.sock` (or unset) to use your local Docker daemon. Under Docker Compose: set to `http://docker-dind:2375` (already set in `docker-compose.yml`) — use `http://`, not `tcp://`, since dockerode's underlying client only recognizes `http`/`https`. |
 | `JOB_EXECUTION_CONCURRENCY`, `LOG_PROCESSING_CONCURRENCY`, `QUEUE_DEFAULT_ATTEMPTS`, `QUEUE_DEFAULT_BACKOFF_MS` | Queue and worker tuning. |
 
 ### Backend (reserved, not yet used by the code)
@@ -188,7 +228,7 @@ Full reference lives in `.env.example` (backend) and `linkara-front/.env.example
 
 ## Available Scripts
 
-### Backend (run from repository root)
+### Backend (run from `backend/`)
 
 | Script | Description |
 | --- | --- |
@@ -201,7 +241,7 @@ Full reference lives in `.env.example` (backend) and `linkara-front/.env.example
 | `npm run db:migrate` | Apply SQL migrations in `src/db/migrations/`. |
 | `npm run db:seed` | Insert development seed data. |
 
-### Frontend (run from `linkara-front/`)
+### Frontend (run from `frontend/`)
 
 | Script | Description |
 | --- | --- |
@@ -213,12 +253,12 @@ Full reference lives in `.env.example` (backend) and `linkara-front/.env.example
 
 ## Database
 
-Schema changes are managed through numbered SQL migration files in `src/db/migrations/`, applied in order by `src/db/migrations/run.ts`. Current migrations cover: enums, initial schema, users, organizations, workflows, pipelines and jobs, secrets, webhooks, notifications, RBAC, tenancy, deployments, and organization invites.
+Schema changes are managed through numbered SQL migration files in `backend/src/db/migrations/`, applied in order by `backend/src/db/migrations/run.ts`. Current migrations cover: enums, initial schema, users, organizations, workflows, pipelines and jobs, secrets, webhooks, notifications, RBAC, tenancy, deployments, and organization invites.
 
 ## Architecture Notes
 
-- The GraphQL schema is split by domain into separate `.graphql` files under `src/graphql/types/`, combined in `src/graphql/schema.ts`, with one resolver module per domain under `src/graphql/resolvers/`.
-- Job execution is asynchronous: workflow runs are enqueued onto BullMQ queues (`src/queue/queues.ts`) and processed by a worker (`src/queue/worker.ts`) that uses Dockerode to run each job's container image and command.
+- The GraphQL schema is split by domain into separate `.graphql` files under `backend/src/graphql/types/`, combined in `backend/src/graphql/schema.ts`, with one resolver module per domain under `backend/src/graphql/resolvers/`.
+- Job execution is asynchronous: workflow runs are enqueued onto BullMQ queues (`backend/src/queue/queues.ts`) and processed by a worker (`backend/src/queue/worker.ts`) that uses Dockerode to run each job's container image and command.
 - Authorization is enforced per-organization: resolvers that touch organization-scoped data check the requesting user's membership/role via `RbacService` and helpers such as `userCanAccessOrganization` before proceeding.
 - The frontend uses the Next.js App Router with route groups: `(auth)` for unauthenticated pages and `(dashboard)` for the authenticated application, with `middleware.ts` guarding dashboard routes.
 
