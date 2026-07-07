@@ -157,6 +157,7 @@ export interface GqlCreateWorkflowInput {
   is_active?: boolean;
 }
 
+
 export interface GraphQLResponse<TData> {
   data: TData;
 }
@@ -1084,6 +1085,68 @@ export async function deleteSecret(
     }
   `,
     { orgId, secretId },
+    token,
+  );
+}
+export interface GqlOrgInvite {
+  id: string;
+  org_id: string;
+  email: string;
+  role: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expires_at: string;
+  created_at: string;
+}
+
+export async function inviteMember(
+  token: string | null,
+  input: { organizationId: string; email: string; role: string },
+): Promise<{ inviteMember: GqlOrgInvite }> {
+  return requestGraphQL(
+    `mutation InviteMember($input: InviteMemberInput!) {
+      inviteMember(input: $input) { id email role status expires_at created_at }
+    }`,
+    { input },
+    token,
+  );
+}
+
+export async function fetchPendingInvites(
+  token: string | null,
+  organizationId: string,
+): Promise<{ pendingInvites: GqlOrgInvite[] }> {
+  return requestGraphQL(
+    `query PendingInvites($organizationId: ID!) {
+      pendingInvites(organizationId: $organizationId) { id email role status expires_at created_at }
+    }`,
+    { organizationId },
+    token,
+  );
+}
+
+export async function revokeInvite(
+  token: string | null,
+  organizationId: string,
+  inviteId: string,
+): Promise<{ revokeInvite: boolean }> {
+  return requestGraphQL(
+    `mutation RevokeInvite($organizationId: ID!, $inviteId: ID!) {
+      revokeInvite(organizationId: $organizationId, inviteId: $inviteId)
+    }`,
+    { organizationId, inviteId },
+    token,
+  );
+}
+
+export async function acceptInvite(
+  token: string | null,
+  inviteToken: string,
+): Promise<{ acceptInvite: { id: string; organization_id: string } }> {
+  return requestGraphQL(
+    `mutation AcceptInvite($token: String!) {
+      acceptInvite(token: $token) { id organization_id }
+    }`,
+    { token: inviteToken },
     token,
   );
 }

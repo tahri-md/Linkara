@@ -22,6 +22,10 @@ import {
   type GqlOrganization,
   updateOrganizationMemberRole,
   fetchUserByEmail,
+  inviteMember,
+  GqlOrgInvite,
+  revokeInvite,
+  fetchPendingInvites,
 } from "@/lib/graphql-client";
 import { useApp } from "@/lib/store";
 import { formatDate } from "@/lib/format";
@@ -85,34 +89,40 @@ export default function OrganizationDetailPage() {
   }
 
 
-  async function onAddMember(values: AddMemberValues) {
+  async function onInviteMember(values: AddMemberValues) {
     try {
-      const lookup = await fetchUserByEmail(token, values.email);
-      if (!lookup.userByEmail) {
-        toast({
-          variant: "destructive",
-          title: "No account found",
-          description: `No user is registered with ${values.email}.`,
-        });
-        return;
-      }
-
-      const response = await addOrganizationMember(token, {
+      await inviteMember(token, {
         organizationId: params.id,
-        userId: lookup.userByEmail.id,
+        email: values.email,
         role: values.role,
       });
-      await refreshOrganization();
-      form.reset({ email: "", role: values.role });
+      toast({ title: "Invite sent", description: `${values.email} will get an email to join.` });
       setMemberActionOpen(false);
-      toast({ title: "Member added", description: "The organization membership list was updated." });
+      form.reset();
+      await loadPendingInvites();
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Add member failed",
+        title: "Invite failed",
         description: error instanceof Error ? error.message : "Unknown error",
       });
     }
+  }
+
+  const [pendingInvites, setPendingInvites] = useState<GqlOrgInvite[]>([]);
+
+  async function loadPendingInvites() {
+    const res = await fetchPendingInvites(token, params.id);
+    setPendingInvites(res.pendingInvites);
+  }
+
+  useEffect(() => {
+    if (!loading && params.id) void loadPendingInvites();
+  }, [loading, params.id]);
+
+  async function handleRevoke(inviteId: string) {
+    await revokeInvite(token, params.id, inviteId);
+    await loadPendingInvites();
   }
 
   async function onUpdateRole(userId: string, role: AddMemberValues["role"]) {
@@ -188,7 +198,7 @@ export default function OrganizationDetailPage() {
               <span>
                 <Plus className="h-4 w-4" />
               </span>
-              Add member
+              Invite member
             </Button>
             <DialogContent>
               <DialogHeader>
@@ -196,7 +206,7 @@ export default function OrganizationDetailPage() {
                 <DialogDescription>Enter a user email from the backend users table and assign a role.</DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form className="space-y-4" onSubmit={form.handleSubmit(onAddMember)}>
+                <form className="space-y-4" onSubmit={form.handleSubmit(onInviteMember)}>
                   <FormField
                     control={form.control}
                     name="email"
@@ -274,6 +284,19 @@ export default function OrganizationDetailPage() {
           </CardContent>
         </Card>
       </section>
+      {pendingInvites.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <p className="text-sm font-medium text-ink-300">Pending invites</p>
+          {pendingInvites.map((invite) => (
+            <div key={invite.id} className="flex items-center justify-between rounded-md border border-ink-800 px-3 py-2">
+              <span className="text-sm text-ink-300">{invite.email} — {invite.role}</span>
+              <Button size="sm" variant="ghost" onClick={() => handleRevoke(invite.id)}>
+                Revoke
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
       <Card className="border-ink-700 bg-ink-900/90">
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
