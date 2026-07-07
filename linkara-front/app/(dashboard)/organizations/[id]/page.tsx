@@ -25,6 +25,7 @@ import {
 import { useApp } from "@/lib/store";
 import { formatDate } from "@/lib/format";
 import { ChevronDown, Plus, Shield, Trash2 } from "lucide-react";
+import { NotificationSettingsPanel } from "@/components/notification-settings-panel";
 
 const addMemberSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -237,6 +238,7 @@ export default function OrganizationDetailPage() {
             <CardTitle className="text-3xl">{organization.members.length}</CardTitle>
           </CardHeader>
         </Card>
+
         <Card className="border-ink-700 bg-ink-900/90">
           <CardHeader>
             <CardDescription>Workflows</CardDescription>
@@ -256,7 +258,15 @@ export default function OrganizationDetailPage() {
           </CardContent>
         </Card>
       </section>
-
+      <Card className="border-ink-700 bg-ink-900/90">
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>Choose how you're notified about pipeline runs in this organization.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NotificationSettingsPanel token={token} orgId={params.id} />
+        </CardContent>
+      </Card>
       <Card className="border-ink-700 bg-ink-900/90">
         <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
           <div>

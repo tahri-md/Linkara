@@ -911,3 +911,75 @@ export async function deleteWebhook(
     token,
   );
 }
+
+export type GqlNotifyOn = "all" | "failure_only";
+
+export interface GqlNotificationPreference {
+  id: string;
+  userId: string;
+  orgId: string;
+  emailOnSuccess: boolean;
+  emailOnFailure: boolean;
+  slackWebhookUrl: string | null;
+  teamsWebhookUrl: string | null;
+  notifyOn: GqlNotifyOn;
+}
+
+export async function fetchNotificationPreferences(
+  token: string | null,
+  orgId: string,
+): Promise<{ notificationPreferences: GqlNotificationPreference | null }> {
+  return requestGraphQL(
+    `
+    query NotificationPreferences($orgId: ID!) {
+      notificationPreferences(orgId: $orgId) {
+        id userId orgId emailOnSuccess emailOnFailure
+        slackWebhookUrl teamsWebhookUrl notifyOn
+      }
+    }
+  `,
+    { orgId },
+    token,
+  );
+}
+
+export async function setNotificationPreferences(
+  token: string | null,
+  orgId: string,
+  preferences: {
+    emailOnSuccess: boolean;
+    emailOnFailure: boolean;
+    slackWebhookUrl?: string;
+    teamsWebhookUrl?: string;
+    notifyOn: GqlNotifyOn;
+  },
+): Promise<{ setNotificationPreferences: GqlNotificationPreference }> {
+  return requestGraphQL(
+    `
+    mutation SetNotificationPreferences($orgId: ID!, $preferences: NotificationPreferenceInput!) {
+      setNotificationPreferences(orgId: $orgId, preferences: $preferences) {
+        id userId orgId emailOnSuccess emailOnFailure
+        slackWebhookUrl teamsWebhookUrl notifyOn
+      }
+    }
+  `,
+    { orgId, preferences },
+    token,
+  );
+}
+
+export async function sendTestNotification(
+  token: string | null,
+  orgId: string,
+  type: "email" | "slack" | "teams",
+): Promise<{ sendTestNotification: boolean }> {
+  return requestGraphQL(
+    `
+    mutation SendTestNotification($orgId: ID!, $type: NotificationType!) {
+      sendTestNotification(orgId: $orgId, type: $type)
+    }
+  `,
+    { orgId, type },
+    token,
+  );
+}
