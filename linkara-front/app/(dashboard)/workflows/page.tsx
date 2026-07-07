@@ -32,6 +32,8 @@ const jobSchema = z.object({
   image: z.string().min(1, "Job image is required"),
   run: z.string().min(1, "Run command is required"),
   dependsOn: z.array(z.string()).default([]),
+  retryCount: z.coerce.number().int().min(0, "Min 0").max(10, "Max 10").default(0),
+  timeoutMinutes: z.coerce.number().int().min(1, "Min 1 minute").max(360, "Max 6 hours").default(60),
 });
 
 const createWorkflowSchema = z
@@ -110,6 +112,8 @@ const DEFAULT_JOBS: CreateWorkflowValues["jobs"] = [
     image: "node:20-alpine",
     run: "npm install\nnpm run build",
     dependsOn: [],
+    retryCount: 0,
+    timeoutMinutes: 60,
   },
 ];
 
@@ -202,6 +206,9 @@ export default function WorkflowsPage() {
               .filter(Boolean)
               .map((run) => ({ run })),
             depends_on: job.dependsOn.length ? job.dependsOn : undefined,
+            retry_count: job.retryCount,
+            timeout: job.timeoutMinutes * 60 * 1000,
+
           })),
         },
         triggers: [
@@ -345,6 +352,8 @@ export default function WorkflowsPage() {
                             image: "node:20-alpine",
                             run: "",
                             dependsOn: [],
+                            retryCount: 0,
+                            timeoutMinutes: 60,
                           })
                         }
                       >
@@ -421,6 +430,34 @@ export default function WorkflowsPage() {
                               </FormItem>
                             )}
                           />
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <FormField
+                              control={form.control}
+                              name={`jobs.${index}.retryCount`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Retry count</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" min={0} max={10} {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`jobs.${index}.timeoutMinutes`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Timeout (minutes)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" min={1} max={360} {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
 
                           {otherJobs.length > 0 && (
                             <FormField
