@@ -15,13 +15,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { LogOut, Workflow, PlaySquare, LayoutDashboard, Building2 } from "lucide-react";
+import { LogOut, Workflow, PlaySquare, LayoutDashboard, Building2, Mail } from "lucide-react";
 
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/organizations", label: "Organizations", icon: Building2 },
   { href: "/workflows", label: "Workflows", icon: Workflow },
   { href: "/runs", label: "Runs", icon: PlaySquare },
+  { href: "/invites", label: "Invites", icon: Mail },
 ];
 
 export default function DashboardLayout({
