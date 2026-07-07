@@ -21,6 +21,7 @@ import {
   removeOrganizationMember,
   type GqlOrganization,
   updateOrganizationMemberRole,
+  fetchUserByEmail,
 } from "@/lib/graphql-client";
 import { useApp } from "@/lib/store";
 import { formatDate } from "@/lib/format";
@@ -29,7 +30,7 @@ import { NotificationSettingsPanel } from "@/components/notification-settings-pa
 import { SecretsPanel } from "@/components/secrets-panel";
 
 const addMemberSchema = z.object({
-  userId: z.string().min(1, "User ID is required"),
+  email: z.string().email("Enter a valid email"),
   role: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]),
 });
 
@@ -48,7 +49,7 @@ export default function OrganizationDetailPage() {
   const form = useForm<AddMemberValues>({
     resolver: zodResolver(addMemberSchema),
     defaultValues: {
-      userId: "",
+      email: "",
       role: "VIEWER",
     },
   });
@@ -83,20 +84,34 @@ export default function OrganizationDetailPage() {
     setOrganization(response.organization);
   }
 
+
   async function onAddMember(values: AddMemberValues) {
     try {
-      await addOrganizationMember(token, {
+      const lookup = await fetchUserByEmail(token, values.email);
+      if (!lookup.userByEmail) {
+        toast({
+          variant: "destructive",
+          title: "No account found",
+          description: `No user is registered with ${values.email}.`,
+        });
+        return;
+      }
+
+      const response = await addOrganizationMember(token, {
         organizationId: params.id,
-        userId: values.userId,
+        userId: lookup.userByEmail.id,
         role: values.role,
       });
       await refreshOrganization();
-      form.reset({ userId: "", role: values.role });
+      form.reset({ email: "", role: values.role });
       setMemberActionOpen(false);
       toast({ title: "Member added", description: "The organization membership list was updated." });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to add member";
-      toast({ variant: "destructive", title: "Add member failed", description: message });
+      toast({
+        variant: "destructive",
+        title: "Add member failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   }
 
@@ -178,18 +193,18 @@ export default function OrganizationDetailPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add organization member</DialogTitle>
-                <DialogDescription>Enter a user ID from the backend users table and assign a role.</DialogDescription>
+                <DialogDescription>Enter a user email from the backend users table and assign a role.</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form className="space-y-4" onSubmit={form.handleSubmit(onAddMember)}>
                   <FormField
                     control={form.control}
-                    name="userId"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>User ID</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="usr_123..." />
+                          <Input {...field} placeholder="user@example.com" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

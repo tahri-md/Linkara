@@ -23,6 +23,16 @@ export const authResolvers: any = {
       }
       return await AuthService.getUserById(context.userId);
     },
+    async userByEmail(
+      _: any,
+      args: { email: string },
+      context: Context,
+    ): Promise<UserPublic | null> {
+      if (!context.userId) {
+        throw new Error('Authentication required');
+      }
+      return await AuthService.getUserByEmail(args.email);
+    },
   },
 
   Mutation: {

@@ -168,6 +168,22 @@ export function getAuthToken(): string | null {
 
   return window.localStorage.getItem("linkara_token");
 }
+export async function fetchUserByEmail(
+  token: string | null,
+  email: string,
+): Promise<{ userByEmail: GqlUser | null }> {
+  return requestGraphQL(
+    `
+    query UserByEmail($email: String!) {
+      userByEmail(email: $email) {
+        id email name avatarUrl
+      }
+    }
+  `,
+    { email },
+    token,
+  );
+}
 
 export function setAuthToken(token: string): void {
   if (typeof window === "undefined") {

@@ -19,6 +19,7 @@ type AuthToken {
 
 type Query {
   me: User
+  userByEmail(email: String!): User
 }
 
 type Mutation {

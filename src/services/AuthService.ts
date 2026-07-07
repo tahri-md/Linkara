@@ -9,7 +9,7 @@ function getJwtSecret(): string {
   if (!secret) {
     throw new Error(
       "JWT_SECRET environment variable is not set. " +
-        "Set a strong random value before starting the server.",
+      "Set a strong random value before starting the server.",
     );
   }
   return secret;
@@ -98,5 +98,12 @@ export class AuthService {
     }
 
     return result.rows[0] as UserPublic;
+  }
+  static async getUserByEmail(email: string): Promise<UserPublic | null> {
+    const result = await query(
+      `SELECT id, email, name, avatar_url, created_at FROM users WHERE email = $1 LIMIT 1`,
+      [email],
+    );
+    return result.rows.length > 0 ? (result.rows[0] as UserPublic) : null;
   }
 }
