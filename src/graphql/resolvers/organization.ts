@@ -1,3 +1,4 @@
+import { AuthService } from '../../services/AuthService.js';
 import { OrganizationService } from '../../services/OrganizationService.js';
 import { Context } from '../schema.js';
 
@@ -43,6 +44,7 @@ export const organizationResolvers = {
         context.userId,
         input.name,
         input.slug,
+        input.description,
         input.avatar_url
       );
     },
@@ -122,6 +124,23 @@ export const organizationResolvers = {
   Organization: {
     members: async (org: any) => {
       return OrganizationService.getOrgMembers(org.id);
+    },
+  },
+
+  OrgMember: {
+    organization_id: (member: any) => member.org_id,
+    user_id: (member: any) => member.user_id,
+    joined_at: (member: any) => {
+      if (!member.joined_at) {
+        return null;
+      }
+
+      return member.joined_at instanceof Date
+        ? member.joined_at.toISOString()
+        : new Date(member.joined_at).toISOString();
+    },
+    user: async (member: any) => {
+      return await AuthService.getUserById(member.user_id);
     },
   },
 };
