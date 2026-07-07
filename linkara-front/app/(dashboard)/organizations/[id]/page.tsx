@@ -26,6 +26,7 @@ import { useApp } from "@/lib/store";
 import { formatDate } from "@/lib/format";
 import { ChevronDown, Plus, Shield, Trash2 } from "lucide-react";
 import { NotificationSettingsPanel } from "@/components/notification-settings-panel";
+import { SecretsPanel } from "@/components/secrets-panel";
 
 const addMemberSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -265,6 +266,15 @@ export default function OrganizationDetailPage() {
         </CardHeader>
         <CardContent>
           <NotificationSettingsPanel token={token} orgId={params.id} />
+        </CardContent>
+      </Card>
+      <Card className="border-ink-700 bg-ink-900/90">
+        <CardHeader>
+          <CardTitle>Secrets</CardTitle>
+          <CardDescription>CI secrets available to this organization's jobs.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SecretsPanel token={token} orgId={params.id} />
         </CardContent>
       </Card>
       <Card className="border-ink-700 bg-ink-900/90">

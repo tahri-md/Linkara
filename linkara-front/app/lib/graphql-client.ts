@@ -48,6 +48,8 @@ export interface GqlWorkflowJobDefinition {
   name: string;
   image: string;
   depends_on: string[] | null;
+  retry_count: number | null;
+  timeout: number | null;
   steps: Array<{ run: string }>;
 }
 export interface GqlWorkflowRepository {
@@ -57,7 +59,7 @@ export interface GqlWorkflowRepository {
 
 export interface GqlWorkflowDefinition {
   jobs: GqlWorkflowJobDefinition[];
-  repository: GqlWorkflowRepository|null;
+  repository: GqlWorkflowRepository | null;
 }
 
 export interface GqlWorkflow {
@@ -131,6 +133,8 @@ export interface GqlWorkflowJobInput {
   name: string;
   image: string;
   depends_on?: string[];
+  retry_count?: number;
+  timeout?: number;
   steps: GqlWorkflowStepInput[];
 }
 
@@ -451,6 +455,8 @@ export async function fetchWorkflows(
               name
               image
               depends_on
+              retry_count
+              timeout
               steps {
                 run
               }
@@ -492,6 +498,8 @@ export async function createWorkflow(
             name
             image
             depends_on
+            retry_count
+            timeout
             steps {
               run
             }
@@ -528,6 +536,8 @@ export async function fetchWorkflow(token: string | null | undefined, id: string
             name
             image
             depends_on
+            retry_count
+            timeout
             steps {
               run
             }
@@ -980,6 +990,84 @@ export async function sendTestNotification(
     }
   `,
     { orgId, type },
+    token,
+  );
+}
+export interface GqlSecret {
+  id: string;
+  org_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  accessed_at: string | null;
+}
+
+export async function fetchSecrets(
+  token: string | null,
+  orgId: string,
+): Promise<{ secrets: GqlSecret[] }> {
+  return requestGraphQL(
+    `
+    query Secrets($orgId: ID!) {
+      secrets(orgId: $orgId) {
+        id org_id name created_at updated_at accessed_at
+      }
+    }
+  `,
+    { orgId },
+    token,
+  );
+}
+
+export async function createSecret(
+  token: string | null,
+  orgId: string,
+  input: { name: string; value: string },
+): Promise<{ createSecret: GqlSecret }> {
+  return requestGraphQL(
+    `
+    mutation CreateSecret($orgId: ID!, $input: CreateSecretInput!) {
+      createSecret(orgId: $orgId, input: $input) {
+        id org_id name created_at updated_at accessed_at
+      }
+    }
+  `,
+    { orgId, input },
+    token,
+  );
+}
+
+export async function updateSecret(
+  token: string | null,
+  orgId: string,
+  secretId: string,
+  value: string,
+): Promise<{ updateSecret: GqlSecret }> {
+  return requestGraphQL(
+    `
+    mutation UpdateSecret($orgId: ID!, $secretId: ID!, $input: UpdateSecretInput!) {
+      updateSecret(orgId: $orgId, secretId: $secretId, input: $input) {
+        id org_id name created_at updated_at accessed_at
+      }
+    }
+  `,
+    { orgId, secretId, input: { value } },
+    token,
+  );
+}
+
+export async function deleteSecret(
+  token: string | null,
+  orgId: string,
+  secretId: string,
+): Promise<{ deleteSecret: { success: boolean; message: string } }> {
+  return requestGraphQL(
+    `
+    mutation DeleteSecret($orgId: ID!, $secretId: ID!) {
+      deleteSecret(orgId: $orgId, secretId: $secretId) { success message }
+    }
+  `,
+    { orgId, secretId },
     token,
   );
 }
