@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon --exec 'npx tsx' src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc && cp src/db/migrations/*.sql dist/db/migrations/ 2>/dev/null || true && cp src/graphql/types/*.graphql dist/graphql/types/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/db/migrations dist/graphql/types && cp src/db/migrations/*.sql dist/db/migrations/ && cp src/graphql/types/*.graphql dist/graphql/types/",
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
