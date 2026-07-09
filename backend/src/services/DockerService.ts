@@ -1,6 +1,7 @@
 import Docker from "dockerode";
 import { PassThrough } from "stream";
 import { logStreamService } from "./LogStreamService.js";
+import { jobService } from "./JobService.js";
 
 function createDockerClient(): Docker {
   const dockerHost = process.env.DOCKER_HOST;
@@ -104,6 +105,8 @@ export class DockerService {
           SecurityOpt: ["no-new-privileges"],
         },
       });
+
+
 
       console.log(`[docker] Container created: ${container.id}`);
       return container;
@@ -334,6 +337,7 @@ export class DockerService {
       await this.pullImage(options.image);
       await this.checkoutRepo(options.repoUrl, options.ref, sourceVolume);
       container = await this.createContainer(options, sourceVolume); await this.startContainer(container);
+      await jobService.updateJobContainerId(options.jobId, container.id);
 
       // const outputPromise = this.streamContainerOutput(
       //   container,

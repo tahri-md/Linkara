@@ -85,6 +85,21 @@ export class JobService {
 
     return result.rows[0] as JobRunState;
   }
+  async updateJobContainerId(jobId: string, containerId: string) {
+    const result = await query(
+      `UPDATE jobs
+             SET docker_container_id = $2
+             WHERE id = $1
+             RETURNING docker_container_id`,
+      [jobId, containerId],
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error("Job not found");
+    }
+
+    return result.rows[0].docker_container_id as string;
+  }
 
   async markJobCompleted(
     jobId: string,
