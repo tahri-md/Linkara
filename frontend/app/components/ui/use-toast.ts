@@ -14,8 +14,7 @@ type ToastProps = {
 };
 
 const TOAST_LIMIT = 6;
-const TOAST_REMOVE_DELAY = 1000000;
-
+const TOAST_REMOVE_DELAY = 300;
 type ToastActionType =
   | { type: "ADD_TOAST"; toast: ToastProps }
   | { type: "UPDATE_TOAST"; toast: Partial<ToastProps> & { id: string } }
