@@ -583,7 +583,7 @@ export default function WorkflowsPage() {
                   </TableCell>
                   <TableCell>{workflow.definition.jobs.length}</TableCell>
                   <TableCell>{workflow.triggers.length}</TableCell>
-                  <TableCell>{formatDate(workflow.created_at)}</TableCell>
+                  <TableCell>Created : {new Date(Number(workflow.created_at)).toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
                       <Link href={`/workflows/${workflow.id}`}>Open</Link>

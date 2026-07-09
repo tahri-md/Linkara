@@ -229,7 +229,7 @@ export default function RunsPage() {
                   </TableCell>
                   <TableCell className="uppercase tracking-wide text-ink-500">{run.trigger_type}</TableCell>
                   <TableCell>{formatDuration(run.duration_seconds)}</TableCell>
-                  <TableCell>{formatDate(run.created_at)}</TableCell>
+                  <TableCell>{new Date(Number(run.created_at)).toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">
                       <Link href={`/runs/${run.id}`}>Open</Link>

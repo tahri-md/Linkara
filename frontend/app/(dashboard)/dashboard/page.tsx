@@ -185,7 +185,7 @@ export default function DashboardPage() {
                         <span>•</span>
                         <span>{workflow.triggers.length} triggers</span>
                         <span>•</span>
-                        <span>{formatDate(workflow.created_at)}</span>
+                        <span>{new Date(Number(workflow.created_at)).toLocaleString()}</span>
                       </div>
                     </div>
                   ))
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-medium text-ink-100">Run {run.id.slice(0, 8)}</p>
-                          <p className="text-sm text-ink-500">Workflow {run.workflow_id.slice(0, 8)} • {formatDate(run.created_at)}</p>
+                          <p className="text-sm text-ink-500">Workflow {run.workflow_id.slice(0, 8)} •{new Date(Number(run.created_at)).toLocaleString()}</p>
                         </div>
                         <StatusBadge status={run.status} />
                       </div>

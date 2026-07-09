@@ -182,7 +182,7 @@ export default function OrganizationDetailPage() {
           <div className="flex flex-wrap gap-2 pt-2 text-xs text-ink-500">
             <span className="rounded-full border border-ink-700 bg-ink-950/40 px-3 py-1">Slug {organization.slug}</span>
             <span className="rounded-full border border-ink-700 bg-ink-950/40 px-3 py-1">Owner {organization.owner_id}</span>
-            <span className="rounded-full border border-ink-700 bg-ink-950/40 px-3 py-1">Created {formatDate(organization.created_at)}</span>
+            <span className="rounded-full border border-ink-700 bg-ink-950/40 px-3 py-1">Created : {new Date(Number(organization.created_at)).toLocaleString()}</span>
           </div>
         </div>
 

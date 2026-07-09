@@ -219,7 +219,7 @@ export default function OrganizationsPage() {
             <CardContent className="space-y-4">
               <p className="text-sm text-ink-500">{organization.description ?? "No description provided."}</p>
               <div className="flex items-center justify-between text-xs text-ink-500">
-                <span>Created {formatDate(organization.created_at)}</span>
+                <span>Created : {new Date(Number(organization.created_at)).toLocaleString()}</span>
                 <span>Owner {organization.owner_id.slice(0, 8)}</span>
               </div>
               <Button asChild variant="secondary" className="w-full">
