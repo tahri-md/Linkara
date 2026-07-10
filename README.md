@@ -1,6 +1,22 @@
-# Linkara
+<p align="center">
+  <img src="assets/linkara-logo.png" alt="Linkara logo" width="120" height="120">
+</p>
 
-Linkara is a full-stack CI/CD pipeline automation platform. It lets teams define workflows made of containerized jobs, trigger them manually, on a schedule, via webhook, or via API, execute them against Docker, and monitor runs, logs, and artifacts through a web dashboard.
+<h1 align="center">Linkara</h1>
+
+<p align="center">
+  Self-hosted CI/CD pipeline automation — define workflows, run them in Docker, watch them live.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/backend-Node.js%20%2F%20TypeScript-33ffa3?style=flat-square&labelColor=0a100f">
+  <img src="https://img.shields.io/badge/frontend-Next.js%2016-33ffa3?style=flat-square&labelColor=0a100f">
+  <img src="https://img.shields.io/badge/license-MIT-33ffa3?style=flat-square&labelColor=0a100f">
+</p>
+
+---
+
+Linkara lets teams define workflows made of containerized jobs, trigger them manually, on a schedule, via webhook, or via API, execute them against Docker, and monitor runs, logs, and artifacts through a web dashboard.
 
 The project has two parts:
 
