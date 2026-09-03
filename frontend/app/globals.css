@@ -1,62 +1,344 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: 168 24% 5%;
-  --foreground: 159 14% 92%;
-  --card: 166 19% 8%;
-  --card-foreground: 159 14% 92%;
-  --popover: 166 19% 8%;
-  --popover-foreground: 159 14% 92%;
-  --primary: 153 100% 60%;
-  --primary-foreground: 166 24% 5%;
-  --secondary: 169 17% 13%;
-  --secondary-foreground: 159 14% 92%;
-  --muted: 168 13% 11%;
-  --muted-foreground: 167 8% 38%;
-  --accent: 153 100% 60%;
-  --accent-foreground: 166 24% 5%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 168 11% 18%;
-  --input: 168 11% 18%;
-  --ring: 152 100% 71%;
+  --background: #0e0e0e;
+  --foreground: #EDEDED;
+
+  --card: #18161D;
+  --card-foreground: #EDEDED;
+
+  --popover: #18161D;
+  --popover-foreground: #EDEDED;
+
+  --primary: #65c635;
+  --primary-foreground: #111014;
+
+  --secondary: #181818;
+  --secondary-foreground: #65c635;
+
+  --muted: #181818;
+  --muted-foreground: #777777;
+
+  --accent: #222222;
+  --accent-foreground: #65c635;
+
+  --destructive: #E5484D;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #292929;
+  --input: #292929;
+
+  --ring: #65c635;
+
+  --chart-1: #65c635;
+  --chart-2: #B8AA99;
+  --chart-3: #8F8579;
+  --chart-4: #E5484D;
+  --chart-5: #707070;
+
+  --sidebar: #0B0A0D;
+  --sidebar-foreground: #EDEDED;
+
+  --sidebar-primary: #65c635;
+  --sidebar-primary-foreground: #111014;
+
+  --sidebar-accent: #181818;
+  --sidebar-accent-foreground: #65c635;
+
+  --sidebar-border: #242424;
+  --sidebar-ring: #65c635;
+
   --radius: 0.9rem;
-  --ink-950: 168 24% 5%;
-  --ink-900: 166 19% 8%;
-  --ink-800: 168 13% 11%;
-  --ink-700: 169 11% 18%;
-  --ink-500: 167 8% 38%;
-  --ink-100: 159 14% 92%;
-  --mint-500: 153 100% 60%;
-  --mint-600: 153 77% 50%;
-  --mint-400: 152 100% 71%;
-  --mint-950: 161 65% 5%;
 }
 
-* {
-  box-sizing: border-box;
-  border-color: hsl(var(--border));
+.dark {
+  --background: #0A090B;
+  --foreground: #F2F2F2;
+
+  --card: #111014;
+  --card-foreground: #F2F2F2;
+
+  --popover: #111014;
+  --popover-foreground: #F2F2F2;
+
+  --primary: #65c635;
+  --primary-foreground: #0A090B;
+
+  --secondary: #151515;
+  --secondary-foreground: #65c635;
+
+  --muted: #151515;
+  --muted-foreground: #777777;
+
+  --accent: #202020;
+  --accent-foreground: #65c635;
+
+  --destructive: #E5484D;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #292929;
+  --input: #292929;
+
+  --ring: #65c635;
+
+  --chart-1: #65c635;
+  --chart-2: #B8AA99;
+  --chart-3: #8F8579;
+  --chart-4: #E5484D;
+  --chart-5: #707070;
+
+  --sidebar: #080709;
+  --sidebar-foreground: #F2F2F2;
+
+  --sidebar-primary: #65c635;
+  --sidebar-primary-foreground: #0A090B;
+
+  --sidebar-accent: #151515;
+  --sidebar-accent-foreground: #65c635;
+
+  --sidebar-border: #222222;
+  --sidebar-ring: #65c635;
 }
 
-html {
-  color-scheme: dark;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, hsl(var(--mint-950) / 0.45), transparent 28%),
-    radial-gradient(circle at top right, hsl(var(--mint-500) / 0.1), transparent 20%),
-    linear-gradient(180deg, hsl(var(--background)), hsl(var(--ink-950)) 68%);
-  color: hsl(var(--foreground));
-  font-family: var(--font-sans), sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans), sans-serif;
+  }
 }
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"] {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="url"]:hover,
+input[type="tel"]:hover,
+input[type="number"]:hover {
+  border-color: #65c635 !important;
+  background-color: #151515 !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus,
+input[type="number"]:focus {
+  border-color: #65c635 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(245, 235, 221, 0.25) !important;
+}
+
+/* =========================================================
+   TEXTAREA
+   ========================================================= */
+
+textarea {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+textarea:hover {
+  border-color: #65c635 !important;
+  background-color: #151515 !important;
+}
+
+textarea:focus {
+  border-color: #65c635 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(245, 235, 221, 0.25) !important;
+}
+
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+select {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+select:hover {
+  border-color: #65c635 !important;
+  background-color: #151515 !important;
+}
+
+select:focus {
+  border-color: #65c635 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(245, 235, 221, 0.25) !important;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+button:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 2px #0A090B,
+    0 0 0 4px #65c635 !important;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+a:hover {
+  color: #65c635;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
 
 ::selection {
-  background: hsl(var(--mint-500) / 0.24);
-  color: hsl(var(--foreground));
+  background: rgba(245, 235, 221, 0.25);
+  color: #65c635;
 }
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A090B;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #292929;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #65c635;
+}
+
+/* =========================================================
+   UTILITY
+   ========================================================= */
 
 @layer utilities {
   .text-balance {
