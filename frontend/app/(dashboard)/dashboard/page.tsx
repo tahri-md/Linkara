@@ -124,7 +124,11 @@ export default function DashboardPage() {
               <DropdownMenuItem disabled>No organizations found</DropdownMenuItem>
             ) : (
               organizations.map((org) => (
-                <DropdownMenuItem key={org.id} onSelect={() => setSelectedOrgId(org.id)}>
+                <DropdownMenuItem
+                  key={org.id}
+                  onSelect={() => setSelectedOrgId(org.id)}
+                  className={cn(org.id === selectedOrgId && "bg-primary/15 text-primary")}
+                >
                   <div className="flex flex-col">
                     <span className="font-medium text-ink-100">{org.name}</span>
                     <span className="text-xs text-ink-500">{org.slug}</span>
@@ -170,12 +174,16 @@ export default function DashboardPage() {
                   <p className="text-sm text-ink-500">No workflows found.</p>
                 ) : (
                   workflows.map((workflow) => (
-                    <div key={workflow.id} className="rounded-2xl border border-ink-700 bg-ink-950/40 p-4">
+                    <Link
+                      key={workflow.id}
+                      href={`/workflows/${workflow.id}`}
+                      className="group block rounded-2xl border border-ink-700 bg-ink-950/40 p-4 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-mint-500/50 hover:bg-ink-900 hover:shadow-[0_10px_24px_rgba(101,198,53,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <Link href={`/workflows/${workflow.id}`} className="font-medium text-ink-100 hover:text-mint-400">
+                          <p className="font-medium text-ink-100 transition-colors group-hover:text-mint-400">
                             {workflow.name}
-                          </Link>
+                          </p>
                           <p className="mt-1 text-sm text-ink-500">{workflow.description ?? "No description"}</p>
                         </div>
                         <Badge className={cn("border", workflow.is_active ? "border-mint-500/30 bg-mint-500/10 text-mint-400" : "border-ink-700 bg-ink-800 text-ink-500")}>{workflow.is_active ? "active" : "inactive"}</Badge>
@@ -187,7 +195,7 @@ export default function DashboardPage() {
                         <span>•</span>
                         <span>{new Date(Number(workflow.created_at)).toLocaleString()}</span>
                       </div>
-                    </div>
+                    </Link>
                   ))
                 )}
               </CardContent>
@@ -203,10 +211,10 @@ export default function DashboardPage() {
                   <p className="text-sm text-ink-500">No pipeline runs found.</p>
                 ) : (
                   pipelineRuns.map((run) => (
-                    <Link key={run.id} href={`/runs/${run.id}`} className="block rounded-2xl border border-ink-700 bg-ink-950/40 p-4 transition-colors hover:border-mint-500/40 hover:bg-ink-900">
+                    <Link key={run.id} href={`/runs/${run.id}`} className="group block rounded-2xl border border-ink-700 bg-ink-950/40 p-4 transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-mint-500/50 hover:bg-ink-900 hover:shadow-[0_10px_24px_rgba(101,198,53,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-ink-100">Run {run.id.slice(0, 8)}</p>
+                          <p className="font-medium text-ink-100 transition-colors group-hover:text-mint-400">Run {run.id.slice(0, 8)}</p>
                           <p className="text-sm text-ink-500">Workflow {run.workflow_id.slice(0, 8)} •{new Date(Number(run.created_at)).toLocaleString()}</p>
                         </div>
                         <StatusBadge status={run.status} />
@@ -234,13 +242,13 @@ export default function DashboardPage() {
                   <div
                     key={org.id}
                     className={cn(
-                      "rounded-2xl border p-4 text-left transition-colors",
+                      "rounded-2xl border p-4 text-left transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out",
                       org.id === selectedOrgId
-                        ? "border-mint-500/40 bg-mint-500/10"
-                        : "border-ink-700 bg-ink-950/40 hover:border-ink-600 hover:bg-ink-900",
+                        ? "border-mint-500/50 bg-mint-500/10 shadow-[0_8px_20px_rgba(101,198,53,0.1)]"
+                        : "border-ink-700 bg-ink-950/40 hover:-translate-y-1 hover:border-mint-500/50 hover:bg-ink-900 hover:shadow-[0_10px_24px_rgba(101,198,53,0.12)]",
                     )}
                   >
-                    <button type="button" className="w-full text-left" onClick={() => setSelectedOrgId(org.id)}>
+                    <button type="button" className="w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400/50" onClick={() => setSelectedOrgId(org.id)}>
                       <p className="font-medium text-ink-100">{org.name}</p>
                       <p className="mt-1 text-sm text-ink-500">{org.description ?? org.slug}</p>
                       <p className="mt-3 text-xs text-ink-500">Owner {org.owner_id.slice(0, 8)}</p>
