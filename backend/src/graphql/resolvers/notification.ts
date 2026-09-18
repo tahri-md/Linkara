@@ -35,7 +35,7 @@ async function userCanAccessOrganization(userId: string, orgId: string): Promise
   return result.rows.length > 0;
 }
 
-async function getUserEmailFromOrgId(userId: string, orgId: string): Promise<string | null> {
+async function getUserEmailFromOrgId(userId: string): Promise<string | null> {
   const result = await query(
     `SELECT u.email FROM users u
      WHERE u.id = $1 LIMIT 1`,
@@ -144,7 +144,7 @@ export const notificationResolvers = {
           throw new Error('No notification preferences configured');
         }
 
-        const email = await getUserEmailFromOrgId(context.userId, args.orgId);
+        const email = await getUserEmailFromOrgId(context.userId);
 
         if (args.type === 'email') {
           if (!email) {

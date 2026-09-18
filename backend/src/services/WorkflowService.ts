@@ -1,11 +1,9 @@
 import { query } from "../db/connection.js";
 import {
-  Workflow,
   CreateWorkflowInput,
   UpdateWorkflowInput,
   WorkflowResponse,
   WorkflowListResponse,
-  WorkflowDefinition,
 } from "../models/Workflow.js";
 import { WorkflowValidator } from "./WorkflowValidator.js";
 

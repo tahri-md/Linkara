@@ -84,8 +84,7 @@ export const webhookResolvers = {
 
     handleWebhookEvent: async (
       _parent: any,
-      args: { input: HandleWebhookEventInput },
-      _context: any
+      args: { input: HandleWebhookEventInput }
     ): Promise<{ success: boolean; pipelineRunId: string; message: string }> => {
       const { webhookId, payload, signature, eventType } = args.input;
 

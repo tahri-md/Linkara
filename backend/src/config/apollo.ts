@@ -6,7 +6,7 @@ export function createApolloServer(typeDefs: string, resolvers: any) {
   const server = new ApolloServer<any>({
     typeDefs,
     resolvers,
-    formatError: (formattedError: GraphQLFormattedError, error: unknown) => {
+    formatError: (formattedError: GraphQLFormattedError) => {
       console.error("GraphQL Error:", formattedError.message);
       return formattedError;
     },

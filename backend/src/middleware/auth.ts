@@ -23,7 +23,7 @@ export function authMiddleware() {
       const userId = await AuthService.verifyToken(token);
       req.userId = userId;
       next();
-    } catch (err) {
+    } catch {
       next();
     }
   };

@@ -129,7 +129,7 @@ export const rbacResolvers = {
       };
     },
 
-    deleteRole: async (_: any, { roleId }: { roleId: string }, context: Context) => {
+    deleteRole: async (_: any, { roleId }: { roleId: string }) => {
       // Note: In a production system you'd want to fetch the role first to verify the user has permission to delete it in their organization
       try {
         await rbacService.deleteRole(roleId);

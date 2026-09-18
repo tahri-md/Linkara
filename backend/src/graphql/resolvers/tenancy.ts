@@ -1,5 +1,5 @@
 import { tenancyService } from '../../services/TenancyService.js';
-import type { TenancyLevel, Tenant } from '../../models/Tenancy.js';
+import type { TenancyLevel } from '../../models/Tenancy.js';
 
 type QuotaResource = 'storage' | 'workflows' | 'jobs' | 'webhooks' | 'users';
 

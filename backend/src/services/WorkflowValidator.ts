@@ -1,5 +1,4 @@
 import {
-  CreateWorkflowInput,
   WorkflowDefinition,
   WorkflowJobDefinition,
 } from "../models/Workflow.js";

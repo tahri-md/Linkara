@@ -35,7 +35,6 @@ class TenancyServiceImpl {
       if (!parent)
         throw new Error(`Parent tenant not found: ${parentTenantId}`);
 
-      const parentLevel = TENANCY_LEVELS[parent.level];
       const currentLevel = TENANCY_LEVELS[level];
 
       if (currentLevel.parent !== parent.level) {

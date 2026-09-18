@@ -1,6 +1,5 @@
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
-import type { Job } from "./Job.js";
 
 export type TriggerType = "manual" | "scheduled" | "webhook" | "api";
 
@@ -79,7 +78,7 @@ export interface UpdateWorkflowInput {
 
 // ─── Responses ───────────────────────────────────────────────────────────────
 
-export interface WorkflowResponse extends Workflow {}
+export type WorkflowResponse = Workflow;
 
 export interface WorkflowListResponse {
   data: WorkflowResponse[];
