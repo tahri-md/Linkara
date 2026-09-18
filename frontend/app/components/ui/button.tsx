@@ -7,21 +7,21 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[transform,background-color,border-color,color,box-shadow] duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_4px_14px_rgba(245,235,221,0.18)]",
+          "bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(101,198,53,0.2)] hover:bg-[#78d64c] hover:shadow-[0_8px_20px_rgba(101,198,53,0.3)] active:bg-[#55ad2b]",
 
         secondary:
-          "bg-secondary text-secondary-foreground border border-border hover:bg-accent hover:border-primary/50",
+          "border border-border bg-secondary text-secondary-foreground hover:border-primary/60 hover:bg-primary/10 hover:text-primary hover:shadow-[0_6px_16px_rgba(101,198,53,0.12)]",
 
         outline:
-          "border border-border bg-transparent text-foreground hover:bg-accent hover:border-primary hover:text-primary",
+          "border border-border bg-transparent text-foreground hover:border-primary hover:bg-primary/10 hover:text-primary hover:shadow-[0_6px_16px_rgba(101,198,53,0.1)]",
 
         ghost:
-          "text-foreground hover:bg-accent hover:text-primary",
+          "text-foreground hover:bg-primary/10 hover:text-primary",
 
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",

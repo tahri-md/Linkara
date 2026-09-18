@@ -10,7 +10,7 @@ function Card({
     <div
       data-slot="card"
       className={cn(
-        "rounded-2xl border border-border bg-card text-card-foreground shadow-sm",
+        "rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-[transform,border-color,background-color,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:border-primary/45 hover:bg-card/95 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)] focus-within:border-primary/60 focus-within:shadow-[0_0_0_2px_rgba(101,198,53,0.16),0_12px_28px_rgba(0,0,0,0.28)]",
         className,
       )}
       {...props}

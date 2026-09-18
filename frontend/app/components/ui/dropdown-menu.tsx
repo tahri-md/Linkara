@@ -60,7 +60,7 @@ function DropdownMenuItem({ className, inset, variant, ...props }: React.Compone
   return (
     <DropdownMenuPrimitive.Item
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-lg px-2 py-2 text-sm outline-none transition-colors focus:bg-ink-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative flex cursor-pointer select-none items-center rounded-lg px-2 py-2 text-sm outline-none transition-[transform,background-color,color] duration-150 ease-out hover:translate-x-0.5 hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         inset && "pl-8",
         variant === "destructive" && "text-red-400 focus:text-red-300",
         className,
