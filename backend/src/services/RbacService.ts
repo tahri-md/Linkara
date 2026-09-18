@@ -5,7 +5,7 @@ import type {
   Permission,
   RBACContext,
 } from "../models/Role.js";
-import { PREDEFINED_ROLES, PredefinedRole } from "../models/Role.js";
+import { PREDEFINED_ROLES } from "../models/Role.js";
 
 export class RBACService {
   async initializeOrgRoles(orgId: string): Promise<void> {

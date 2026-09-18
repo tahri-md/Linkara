@@ -77,7 +77,7 @@ export class AuthService {
     try {
       const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
       return decoded.userId;
-    } catch (err) {
+    } catch {
       throw new Error("Invalid or expired token");
     }
   }

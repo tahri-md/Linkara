@@ -4,7 +4,6 @@ import crypto from "crypto";
 import { query } from "../db/connection.js";
 import type {
   NotificationPreference,
-  NotificationLog,
   SlackMessage,
   TeamsMessage,
   NotificationInput,
@@ -74,8 +73,7 @@ export class NotificationService {
        </body>
      </html>
    `;
-    +
-      await this.transporter.sendMail({
+    await this.transporter.sendMail({
         from: process.env.EMAIL_FROM || "noreply@linkara.dev",
         to: email,
         subject: `You've been invited to join ${orgName} on Linkara`,
