@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   clearAuthToken,
   fetchMe,
@@ -33,7 +33,7 @@ export function AppStateProvider({
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function hydrateSession() {
+  const hydrateSession = useCallback(async () => {
     const storedToken = getAuthToken();
     if (!storedToken) {
       setUser(null);
@@ -58,11 +58,11 @@ export function AppStateProvider({
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void hydrateSession();
-  }, []);
+    void Promise.resolve().then(hydrateSession);
+  }, [hydrateSession]);
 
   async function login(email: string, password: string) {
     const response = await loginRequest({ email, password });
@@ -84,9 +84,9 @@ export function AppStateProvider({
     setUser(null);
   }
 
-  async function refreshSession() {
+  const refreshSession = useCallback(async () => {
     await hydrateSession();
-  }
+  }, [hydrateSession]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -99,7 +99,7 @@ export function AppStateProvider({
       signup,
       refreshSession,
     }),
-    [loading, token, user],
+    [loading, refreshSession, token, user],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

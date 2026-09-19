@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   fetchWebhooks,
@@ -25,14 +25,14 @@ export function WebhookPanel({
   const [revealedUrl, setRevealedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const res = await fetchWebhooks(token, orgId);
     setWebhooks(res.webhooks.data.filter((w) => w.workflow_id === workflowId));
-  }
+  }, [orgId, token, workflowId]);
 
   useEffect(() => {
-    void load();
-  }, [orgId, workflowId]);
+    void Promise.resolve().then(load);
+  }, [load]);
 
   async function handleCreate(provider: (typeof PROVIDERS)[number]) {
     setLoading(true);

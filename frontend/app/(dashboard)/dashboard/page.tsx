@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/status-badge";
 import { useApp } from "@/lib/store";
 import { fetchOrganizations, fetchPipelineRuns, fetchWorkflows, type GqlOrganization, type GqlPipelineRunResponse, type GqlWorkflow } from "@/lib/graphql-client";
-import { formatDate, formatDuration, normalizeStatus } from "@/lib/format";
+import { formatDuration, normalizeStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChevronDown, GitBranch, PlayCircle, Server, Workflow } from "lucide-react";
 

@@ -16,12 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import {
-  addOrganizationMember,
   fetchOrganization,
   removeOrganizationMember,
   type GqlOrganization,
   updateOrganizationMemberRole,
-  fetchUserByEmail,
   inviteMember,
   GqlOrgInvite,
   revokeInvite,
@@ -47,8 +45,6 @@ export default function OrganizationDetailPage() {
   const { token, loading } = useApp();
   const [organization, setOrganization] = useState<GqlOrganization | null>(null);
   const [memberActionOpen, setMemberActionOpen] = useState(false);
-  const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
-  const [activeRole, setActiveRole] = useState<AddMemberValues["role"]>("VIEWER");
 
   const form = useForm<AddMemberValues>({
     resolver: zodResolver(addMemberSchema),
@@ -117,8 +113,14 @@ export default function OrganizationDetailPage() {
   }
 
   useEffect(() => {
-    if (!loading && params.id) void loadPendingInvites();
-  }, [loading, params.id]);
+    if (loading || !params.id) {
+      return;
+    }
+
+    void fetchPendingInvites(token, params.id).then((res) => {
+      setPendingInvites(res.pendingInvites);
+    });
+  }, [loading, params.id, token]);
 
   async function handleRevoke(inviteId: string) {
     await revokeInvite(token, params.id, inviteId);
@@ -300,7 +302,7 @@ export default function OrganizationDetailPage() {
       <Card className="border-ink-700 bg-ink-900/90">
         <CardHeader>
           <CardTitle>Notifications</CardTitle>
-          <CardDescription>Choose how you're notified about pipeline runs in this organization.</CardDescription>
+          <CardDescription>Choose how you&apos;re notified about pipeline runs in this organization.</CardDescription>
         </CardHeader>
         <CardContent>
           <NotificationSettingsPanel token={token} orgId={params.id} />
@@ -309,7 +311,7 @@ export default function OrganizationDetailPage() {
       <Card className="border-ink-700 bg-ink-900/90">
         <CardHeader>
           <CardTitle>Secrets</CardTitle>
-          <CardDescription>CI secrets available to this organization's jobs.</CardDescription>
+          <CardDescription>CI secrets available to this organization&apos;s jobs.</CardDescription>
         </CardHeader>
         <CardContent>
           <SecretsPanel token={token} orgId={params.id} />

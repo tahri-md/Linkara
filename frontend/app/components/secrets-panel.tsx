@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
@@ -15,7 +15,7 @@ export function SecretsPanel({ token, orgId }: { token: string | null; orgId: st
   const [rotateValue, setRotateValue] = useState("");
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const res = await fetchSecrets(token, orgId);
       setSecrets(res.secrets);
@@ -28,11 +28,11 @@ export function SecretsPanel({ token, orgId }: { token: string | null; orgId: st
     } finally {
       setLoading(false);
     }
-  }
+  }, [orgId, token]);
 
   useEffect(() => {
-    void load();
-  }, [orgId]);
+    void Promise.resolve().then(load);
+  }, [load]);
 
   async function handleCreate() {
     if (!newName.trim() || !newValue.trim()) return;

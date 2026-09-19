@@ -26,7 +26,6 @@ export default function RunDetailPage() {
     }
 
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
 
     async function loadRun() {
       setIsPolling(true);
@@ -43,15 +42,13 @@ export default function RunDetailPage() {
     }
 
     void loadRun();
-    intervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       void loadRun();
     }, 5000);
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(intervalId);
     };
   }, [loading, params.id, token]);
 

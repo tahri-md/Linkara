@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,6 @@ import { StatusBadge } from "@/components/status-badge";
 import { toast } from "@/components/ui/use-toast";
 import { useApp } from "@/lib/store";
 import { createWorkflow, fetchOrganizations, fetchWorkflows, type GqlOrganization, type GqlWorkflow } from "@/lib/graphql-client";
-import { formatDate } from "@/lib/format";
 import { ChevronDown, Plus, X } from "lucide-react";
 
 const jobSchema = z.object({
@@ -131,7 +130,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<GqlWorkflow[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const form = useForm<CreateWorkflowFormInput, any, CreateWorkflowValues>({
+  const form = useForm<CreateWorkflowFormInput, unknown, CreateWorkflowValues>({
     resolver: zodResolver(createWorkflowSchema),
     defaultValues: {
       name: "",
@@ -148,7 +147,7 @@ export default function WorkflowsPage() {
     control: form.control,
     name: "jobs",
   });
-  const watchedJobs = form.watch("jobs");
+  const watchedJobs = useWatch({ control: form.control, name: "jobs" });
 
   useEffect(() => {
     if (loading) {
