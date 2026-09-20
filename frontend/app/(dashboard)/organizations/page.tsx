@@ -15,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { createOrganization, fetchOrganizations, type GqlOrganization } from "@/lib/graphql-client";
 import { useApp } from "@/lib/store";
-import { formatDate } from "@/lib/format";
 import { Building2, Plus } from "lucide-react";
 
 const createOrganizationSchema = z.object({

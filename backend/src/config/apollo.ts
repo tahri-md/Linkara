@@ -1,5 +1,5 @@
 import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
+import { expressMiddleware } from "@as-integrations/express4";
 import type { GraphQLFormattedError } from "graphql";
 
 export function createApolloServer(typeDefs: string, resolvers: any) {

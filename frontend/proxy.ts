@@ -4,7 +4,7 @@ const AUTH_COOKIE = "linkara_token";
 const PROTECTED_PATHS = ["/dashboard", "/organizations", "/workflows", "/runs"];
 const AUTH_PATHS = ["/login", "/signup"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   const { pathname } = request.nextUrl;
 

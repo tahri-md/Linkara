@@ -8,7 +8,6 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { fetchJobLogs, type GqlJobLog } from "@/lib/graphql-client";
 
 const LEVEL_COLOR: Record<string, string> = {

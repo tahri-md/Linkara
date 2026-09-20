@@ -12,8 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { useApp } from "@/lib/store";
-import { fetchOrganizations, fetchPipelineRuns, fetchWorkflows, triggerPipelineRun, type GqlOrganization, type GqlPipelineRunResponse, type GqlTriggerPipelineRunInput } from "@/lib/graphql-client";
-import { formatDate, formatDuration } from "@/lib/format";
+import { fetchOrganizations, fetchPipelineRuns, triggerPipelineRun, type GqlOrganization, type GqlPipelineRunResponse, type GqlTriggerPipelineRunInput } from "@/lib/graphql-client";
+import { formatDuration } from "@/lib/format";
 import { ChevronDown, Play, RefreshCcw } from "lucide-react";
 
 export default function RunsPage() {
@@ -22,7 +22,7 @@ export default function RunsPage() {
   const { token, loading } = useApp();
   const [organizations, setOrganizations] = useState<GqlOrganization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(searchParams.get("orgId"));
-  const [workflowId, setWorkflowId] = useState<string | null>(searchParams.get("workflowId"));
+  const [workflowId] = useState<string | null>(searchParams.get("workflowId"));
   const [runs, setRuns] = useState<GqlPipelineRunResponse[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isTriggerOpen, setIsTriggerOpen] = useState(false);
@@ -53,7 +53,6 @@ export default function RunsPage() {
     }
 
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
 
     async function loadRuns() {
       setRefreshing(true);
@@ -75,15 +74,13 @@ export default function RunsPage() {
     }
 
     void loadRuns();
-    intervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       void loadRuns();
     }, 10000);
 
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(intervalId);
     };
   }, [loading, selectedOrgId, token, workflowId]);
 
