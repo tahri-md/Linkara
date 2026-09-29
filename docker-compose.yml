@@ -74,6 +74,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
+    command: sh -c "npm run db:migrate && npm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -111,3 +112,4 @@ volumes:
 networks:
   linkara-network:
     driver: bridge
+
