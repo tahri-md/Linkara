@@ -10,6 +10,8 @@ import { createJobExecutionWorker } from './queue/worker.js';
 import type { Worker } from 'bullmq';
 import cors from 'cors';
 import { WebhooksService } from './services/WebhooksService.js';
+import { logStreamService } from './services/LogStreamService.js';
+import { userCanAccessJob } from './graphql/resolvers/job.js';
 const PORT = process.env.PORT || 4000;
 
 // Fail fast if required env vars are missing
@@ -43,6 +45,50 @@ async function startServer() {
   allowedHeaders: ['Content-Type', 'Authorization', 'apollo-require-preflight', 'x-apollo-operation-name'],
 }));
   app.use(authMiddleware());
+
+  app.get('/jobs/:jobId/logs/stream', async (req, res) => {
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const { jobId } = req.params;
+    try {
+      if (!(await userCanAccessJob(userId, jobId))) {
+        res.status(403).json({ error: 'You do not have permission to access logs for this job' });
+        return;
+      }
+
+      res.status(200);
+      res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      res.flushHeaders();
+
+      const sendLog = (log: unknown) => {
+        res.write(`event: log\ndata: ${JSON.stringify(log)}\n\n`);
+      };
+      const unsubscribe = logStreamService.subscribe(jobId, sendLog);
+      const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 20000);
+      res.on('close', () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+      });
+
+      // Subscribe before reading history so logs written during setup are not
+      // missed. The client de-duplicates by log id because these may overlap.
+      const existingLogs = await logStreamService.getJobLogs(jobId);
+      for (const log of existingLogs) sendLog(log);
+    } catch (error) {
+      console.error('[logs] Failed to open log stream:', error);
+      if (!res.headersSent) res.status(500).json({ error: 'Failed to open log stream' });
+      else res.end();
+    }
+  });
 
   const apolloServer = createApolloServer(typeDefs, resolvers);
   await apolloServer.start();

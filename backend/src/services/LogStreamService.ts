@@ -1,5 +1,6 @@
 import { query } from "../db/connection.js";
 import type { JobLog, LogLevel, LogLineInput } from "../models/JobLog.js";
+import { EventEmitter } from "node:events";
 
 export interface StreamLogsOptions {
   startingLineNumber?: number;
@@ -15,6 +16,7 @@ interface PendingLogState {
 }
 
 export class LogStreamService {
+  private logEvents = new EventEmitter();
   private pendingLogs = new Map<string, PendingLogState>();
   private writeChains = new Map<string, Promise<void>>();
 
@@ -98,7 +100,14 @@ export class LogStreamService {
       ],
     );
 
-    return result.rows[0] as JobLog;
+    const log = result.rows[0] as JobLog;
+    this.logEvents.emit(jobId, log);
+    return log;
+  }
+
+  subscribe(jobId: string, listener: (log: JobLog) => void): () => void {
+    this.logEvents.on(jobId, listener);
+    return () => this.logEvents.off(jobId, listener);
   }
 
   private async enqueueWrite<T>(

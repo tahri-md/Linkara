@@ -8,7 +8,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { fetchJobLogs, type GqlJobLog } from "@/lib/graphql-client";
+import { streamJobLogs, type GqlJobLog } from "@/lib/graphql-client";
 
 const LEVEL_COLOR: Record<string, string> = {
     ERROR: "text-red-400",
@@ -37,36 +37,31 @@ export function JobLogsDialog({
     useEffect(() => {
         if (!open) return;
 
-        let cancelled = false;
-        let intervalId: ReturnType<typeof setInterval> | undefined;
+        const controller = new AbortController();
+        setLoading(true);
+        setError(null);
+        setLogs([]);
 
-        async function load() {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetchJobLogs(token, jobId);
-                if (!cancelled) setLogs(res.jobLogs);
-            }
-            catch (err) {
-                if (!cancelled) {
-                    setError(err instanceof Error ? err.message : "Failed to load logs");
-                    console.error("[job-logs] fetch failed:", err);
-                }
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        }
-
-        void load();
-        if (isRunning) {
-            intervalId = setInterval(() => void load(), 3000);
-        }
+        void streamJobLogs(token, jobId, controller.signal, (log) => {
+            setLogs((current) => {
+                if (current.some((item) => item.id === log.id)) return current;
+                return [...current, log].sort((a, b) => {
+                    const lineOrder = (a.line_number ?? Number.MAX_SAFE_INTEGER)
+                        - (b.line_number ?? Number.MAX_SAFE_INTEGER);
+                    return lineOrder || a.timestamp.localeCompare(b.timestamp);
+                });
+            });
+            setLoading(false);
+        }).catch((err) => {
+            if (controller.signal.aborted) return;
+            setError(err instanceof Error ? err.message : "Failed to load logs");
+            console.error("[job-logs] stream failed:", err);
+        }).finally(() => setLoading(false));
 
         return () => {
-            cancelled = true;
-            if (intervalId) clearInterval(intervalId);
+            controller.abort();
         };
-    }, [open, jobId, token, isRunning]);
+    }, [open, jobId, token]);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -75,7 +70,7 @@ export function JobLogsDialog({
                 <DialogHeader>
                     <DialogTitle>{jobName} — logs</DialogTitle>
                     <DialogDescription>
-                        {isRunning ? "Live, refreshing every 3s." : "Final captured output."}
+                        {isRunning ? "Live log stream." : "Captured output."}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto rounded-md bg-ink-950 p-4 font-mono text-xs">

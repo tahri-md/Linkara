@@ -1,7 +1,7 @@
 import Docker from "dockerode";
 import { PassThrough } from "stream";
-import { logStreamService } from "./LogStreamService.js";
 import { jobService } from "./JobService.js";
+import { logStreamService } from "./LogStreamService.js";
 
 function createDockerClient(): Docker {
   const dockerHost = process.env.DOCKER_HOST;
@@ -161,22 +161,53 @@ export class DockerService {
   private async streamContainerOutput(
     container: Docker.Container,
     jobId: string,
+    signal: AbortSignal,
   ): Promise<{ stdout: string; stderr: string }> {
+    const stdoutStream = new PassThrough();
+    const stderrStream = new PassThrough();
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+    const logWrites: Promise<unknown>[] = [];
+
     try {
-      const output = (await container.logs({
-        stdout: true,
-        stderr: true,
-        follow: true,
-        timestamps: false,
-      })) as NodeJS.ReadableStream;
+      let output: NodeJS.ReadableStream;
+      try {
+        output = (await container.logs({
+          stdout: true,
+          stderr: true,
+          follow: true,
+          timestamps: false,
+          abortSignal: signal,
+        })) as NodeJS.ReadableStream;
+      } catch (err) {
+        if (!signal.aborted) throw err;
+        await logStreamService.flush(jobId);
+        return { stdout: "", stderr: "" };
+      }
 
-      const stdoutStream = new PassThrough();
-      const stderrStream = new PassThrough();
-      docker.modem.demuxStream(output, stdoutStream, stderrStream);
-
-      const stdoutChunks: string[] = [];
-      const stderrChunks: string[] = [];
-      const logWrites: Promise<unknown>[] = [];
+      const source = output as NodeJS.ReadableStream & {
+        destroy?: (error?: Error) => void;
+      };
+      let sourceClosed = false;
+      const closeDemuxStreams = () => {
+        if (sourceClosed) return;
+        sourceClosed = true;
+        stdoutStream.end();
+        stderrStream.end();
+      };
+      source.on("end", closeDemuxStreams);
+      source.on("close", closeDemuxStreams);
+      source.on("error", (err: Error) => {
+        // Aborting after container exit is expected; close the demux streams so
+        // their completion promises settle. Other errors are logged below via
+        // the output stream's error handler.
+        if (signal.aborted) {
+          closeDemuxStreams();
+          return;
+        }
+        stdoutStream.destroy(err);
+        stderrStream.destroy(err);
+      });
 
       const stdoutDone = new Promise<void>((resolve, reject) => {
         stdoutStream.on("data", (chunk: Buffer) => {
@@ -184,8 +215,8 @@ export class DockerService {
           stdoutChunks.push(text);
           logWrites.push(logStreamService.appendChunk(jobId, text, "stdout"));
         });
-        stdoutStream.on("end", () => resolve());
-        stdoutStream.on("error", (err) => reject(err));
+        stdoutStream.on("end", resolve);
+        stdoutStream.on("error", reject);
       });
 
       const stderrDone = new Promise<void>((resolve, reject) => {
@@ -194,12 +225,24 @@ export class DockerService {
           stderrChunks.push(text);
           logWrites.push(logStreamService.appendChunk(jobId, text, "stderr"));
         });
-        stderrStream.on("end", () => resolve());
-        stderrStream.on("error", (err) => reject(err));
+        stderrStream.on("end", resolve);
+        stderrStream.on("error", reject);
       });
 
-      await Promise.all([stdoutDone, stderrDone]);
-      await Promise.all(logWrites);
+      docker.modem.demuxStream(output, stdoutStream, stderrStream);
+
+      const onAbort = () => {
+        source.destroy?.();
+        closeDemuxStreams();
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+
+      try {
+        await Promise.all([stdoutDone, stderrDone]);
+        await Promise.all(logWrites);
+      } finally {
+        signal.removeEventListener("abort", onAbort);
+      }
 
       const stdout = stdoutChunks.join("");
       const stderr = stderrChunks.join("");
@@ -339,14 +382,17 @@ export class DockerService {
       container = await this.createContainer(options, sourceVolume); await this.startContainer(container);
       await jobService.updateJobContainerId(options.jobId, container.id);
 
-      // const outputPromise = this.streamContainerOutput(
-      //   container,
-      //   options.jobId,
-      // );
-
+      const logController = new AbortController();
+      const outputPromise = this.streamContainerOutput(
+        container,
+        options.jobId,
+        logController.signal,
+      );
       const exitCode = await this.waitForContainer(container, options.timeout);
-      // const { stdout, stderr } = await outputPromise;
-      const { stdout, stderr } = await this.collectLogs(container, options.jobId);
+      logController.abort();
+      const { stdout, stderr } = await outputPromise;
+
+      // const { stdout, stderr } = await this.collectLogs(container, options.jobId);
       return {
         exitCode,
         stdout,

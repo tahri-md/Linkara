@@ -2,6 +2,7 @@ import { GraphQLClient, ClientError } from "graphql-request";
 
 const DEFAULT_GRAPHQL_URL = "http://localhost:4000/graphql";
 const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? DEFAULT_GRAPHQL_URL;
+const API_ORIGIN = new URL(GRAPHQL_URL).origin;
 
 export type GraphQLVariables = Record<string, unknown>;
 
@@ -847,6 +848,49 @@ export async function fetchJobLogs(
     { jobId },
     token,
   );
+}
+
+export async function streamJobLogs(
+  token: string | null,
+  jobId: string,
+  signal: AbortSignal,
+  onLog: (log: GqlJobLog) => void,
+): Promise<void> {
+  const response = await fetch(
+    `${API_ORIGIN}/jobs/${encodeURIComponent(jobId)}/logs/stream`,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to connect to log stream (${response.status})`);
+  }
+  if (!response.body) throw new Error("Log stream response has no body");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() ?? "";
+
+    for (const event of events) {
+      const eventName = event.match(/^event:\s*(.+)$/m)?.[1];
+      const data = event
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n");
+      if (eventName !== "log" || !data) continue;
+      onLog(JSON.parse(data) as GqlJobLog);
+    }
+  }
 }
 
 export interface GqlJobArtifact {
